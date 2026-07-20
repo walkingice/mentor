@@ -13,3 +13,10 @@
 * 每個學生都有自己的更新按鈕，每次按下按鈕只更新該學生的評語。每次修改學生的內容也都會同步存到 localStorage。產生的評語內容會更口語化、現代化。格式類似「老師覺得 OO 是..」「OO 是個....」「OO 一直以來....」之類的的開頭。
 * 最下方會有匯出的按鈕，按下後依照順序匯出學生的評語內容為 Unicode 編碼的 txt 檔，預設檔名是「O年O班評語_年月日_時分秒.txt」。
 * 特質的預設選項 Modal，有分成三個區塊：正面、中性、負面。每個區塊都能自行增加額外的標籤，並且存到 localStorage 避免遺失。
+
+# Data storage
+
+* Stores all the data to localStorage. Since the same domain might be shared to different pages by path, one prefix should be added to each key.
+    * Define `STORAGE_PREFIX_KEY=myapp_comment`
+    * When accessing localStorage, the prefix should be added to each key.
+
