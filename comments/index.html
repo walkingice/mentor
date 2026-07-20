@@ -313,17 +313,7 @@
                 ));
         };
 
-        const generateCommentWithGemini = async (student, settings) => {
-            const apiKey = settings.apiKey?.trim();
-            if (!apiKey) {
-                throw new Error("請先在最上方貼上您的 Gemini API 金鑰！");
-            }
-
-            const model = DEFAULT_GEMINI_MODELS.includes(settings.model)
-                ? settings.model
-                : DEFAULT_GEMINI_MODELS[0];
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-
+        const buildCommentPrompt = (student, settings) => {
             const toneMap = {
                 "溫暖": "溫暖、充滿鼓勵與關懷",
                 "理性": "客觀、理性、具體點出事實",
@@ -350,6 +340,19 @@
                 prompt += `\n\n請直接根據上述設定產生一段約 100~200 字的完整期末評語。`;
             }
 
+            return prompt;
+        };
+
+        const generateCommentWithGemini = async (student, settings, prompt = buildCommentPrompt(student, settings)) => {
+            const apiKey = settings.apiKey?.trim();
+            if (!apiKey) {
+                throw new Error("請先在最上方貼上您的 Gemini API 金鑰！");
+            }
+
+            const model = DEFAULT_GEMINI_MODELS.includes(settings.model)
+                ? settings.model
+                : DEFAULT_GEMINI_MODELS[0];
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
             const payload = {
                 contents: [{ parts: [{ text: prompt }] }],
                 generationConfig: {
@@ -397,6 +400,54 @@
                 console.error("Generation Error:", error);
                 throw error;
             }
+        };
+
+        const PromptPreviewDialog = ({ prompt, onClose, onConfirm }) => {
+            if (!prompt) return null;
+
+            return (
+                <div
+                    className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="prompt-preview-title"
+                >
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
+                        <div className="flex justify-between items-center p-5 border-b border-gray-100">
+                            <h2 id="prompt-preview-title" className="text-xl font-bold text-gray-800">
+                                預覽要送出的 Prompt
+                            </h2>
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500"
+                                aria-label="關閉 Prompt 預覽"
+                            >
+                                <Icon name="x" />
+                            </button>
+                        </div>
+                        <pre className="flex-1 overflow-auto whitespace-pre-wrap break-words p-5 bg-gray-50 text-sm text-gray-700 leading-relaxed">
+                            {prompt}
+                        </pre>
+                        <div className="p-5 border-t border-gray-100 bg-white flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition-colors"
+                            >
+                                取消
+                            </button>
+                            <button
+                                type="button"
+                                onClick={onConfirm}
+                                className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                            >
+                                確認並送出
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
         };
 
         const TraitsModal = ({ isOpen, onClose, onAddTraits, presetTraits, setPresetTraits }) => {
@@ -696,6 +747,7 @@
             const [presetTraits, setPresetTraits] = useLocalStorage('teacher-preset-traits', DEFAULT_PRESET_TRAITS);
             
             const [modalConfig, setModalConfig] = useState({ isOpen: false, studentId: null });
+            const [promptPreview, setPromptPreview] = useState(null);
             const [globalError, setGlobalError] = useState(null);
             const [deletingId, setDeletingId] = useState(null);
             const [showApiKey, setShowApiKey] = useState(false);
@@ -743,7 +795,7 @@
                 setStudents(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
             };
 
-            const handleGenerateComment = async (studentId) => {
+            const handleGenerateComment = async (studentId, promptOverride = null) => {
                 setGlobalError(null);
                 updateStudent(studentId, 'isLoading', true);
                 updateStudent(studentId, 'error', null);
@@ -751,7 +803,7 @@
                 const student = students.find(s => s.id === studentId);
                 
                 try {
-                    const generatedText = await generateCommentWithGemini(student, settings);
+                    const generatedText = await generateCommentWithGemini(student, settings, promptOverride);
                     updateStudent(studentId, 'comment', generatedText);
                 } catch (error) {
                     updateStudent(studentId, 'error', error.message);
@@ -760,6 +812,24 @@
                 } finally {
                     updateStudent(studentId, 'isLoading', false);
                 }
+            };
+
+            const handlePreviewPrompt = (studentId) => {
+                const student = students.find(s => s.id === studentId);
+                if (!student) return;
+
+                setPromptPreview({
+                    studentId,
+                    prompt: buildCommentPrompt(student, settings)
+                });
+            };
+
+            const handleConfirmPrompt = () => {
+                if (!promptPreview) return;
+
+                const { studentId } = promptPreview;
+                setPromptPreview(null);
+                handleGenerateComment(studentId, promptPreview.prompt);
             };
 
             const addStudent = () => {
@@ -1040,23 +1110,35 @@
                                             </div>
                                             
                                             <div className="pt-2">
-                                                <button
-                                                    onClick={() => handleGenerateComment(student.id)}
-                                                    disabled={student.isLoading}
-                                                    className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-semibold transition-all ${
-                                                        student.isLoading 
-                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                                        : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 shadow-md hover:shadow-lg shadow-blue-500/30'
-                                                    }`}
-                                                >
-                                                    {student.isLoading ? (
-                                                        <Icon name="loader-2" className="animate-spin" />
-                                                    ) : (
-                                                        <Icon name="wand-2" />
-                                                    )}
-                                                    {student.isLoading ? '撰寫中...' : (student.comment ? '潤飾 / 擴寫' : '產生評語')}
-                                                </button>
-                                                
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleGenerateComment(student.id)}
+                                                        disabled={student.isLoading}
+                                                        className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-semibold transition-all ${
+                                                            student.isLoading
+                                                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                            : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 shadow-md hover:shadow-lg shadow-blue-500/30'
+                                                        }`}
+                                                    >
+                                                        {student.isLoading ? (
+                                                            <Icon name="loader-2" className="animate-spin" />
+                                                        ) : (
+                                                            <Icon name="wand-2" />
+                                                        )}
+                                                        {student.isLoading ? '撰寫中...' : (student.comment ? '潤飾 / 擴寫' : '產生評語')}
+                                                    </button>
+
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handlePreviewPrompt(student.id)}
+                                                        disabled={student.isLoading}
+                                                        className="shrink-0 px-3 py-2 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                                    >
+                                                        先檢視
+                                                    </button>
+                                                </div>
+
                                                 {student.error && (
                                                     <p className="text-xs text-red-500 text-center flex items-center justify-center gap-1 mt-2 font-medium bg-red-50 py-1.5 px-2.5 rounded-lg border border-red-100">
                                                         <Icon name="alert-triangle" size={12} className="shrink-0" />
@@ -1121,6 +1203,12 @@
                         onAddTraits={handleAddTraitsFromModal}
                         presetTraits={presetTraits}
                         setPresetTraits={setPresetTraits}
+                    />
+
+                    <PromptPreviewDialog
+                        prompt={promptPreview?.prompt}
+                        onClose={() => setPromptPreview(null)}
+                        onConfirm={handleConfirmPrompt}
                     />
                 </div>
             );
