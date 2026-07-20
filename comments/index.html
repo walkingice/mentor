@@ -329,17 +329,20 @@
                 ? configuredCommentLength
                 : DEFAULT_SETTINGS.commentLength;
             const lengthDescription = `約 ${commentLength} 字`;
+            const shouldIncludeName = settings.includeName !== false && student.name?.trim();
+            const studentReference = shouldIncludeName ? student.name.trim() : '該生';
+            const openingReference = shouldIncludeName ? student.name.trim() : '你';
 
             let prompt = `你是一位台灣國中小學教師，正在撰寫學生的期末評語。
 請根據以下資訊撰寫評語：
-- 學生姓名：${settings.includeName ? student.name : '該生'}
+- 學生姓名：${studentReference}
 - 特質標籤：${student.traits.join('、 ') || '無特別標註'}
 - 期望口吻：${toneMap[settings.tone] || settings.tone}
 - 是否包含勉勵結語：${settings.includeClosing ? '是，請在最後加一些勉勵的話' : '否，不需要勉勵結語'}
 
 強制指示：
 1. 產生的評語必須現代、口語化，像是對家長或學生說話的感覺。
-2. 開頭請盡量使用類似「老師覺得 ${settings.includeName ? student.name : '你'} 是..」、「${settings.includeName ? student.name : '你'} 是個....」、「${settings.includeName ? student.name : '你'} 一直以來....」的方式。
+2. 開頭請盡量使用類似「老師覺得 ${shouldIncludeName ? student.name.trim() : '你'} 是..」、「${openingReference} 是個....」、「${openingReference} 一直以來....」的方式。
 3. 如果有提供特質標籤，請務必將這些特質自然地揉合進評語的句子中，不要只是條列。
 4. 絕對不要輸出任何引言（例如「這是一段評語：」）、問候語或解釋，直接輸出評語內容本身即可。
 `;

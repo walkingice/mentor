@@ -42,3 +42,24 @@ test('buildCommentPrompt falls back for legacy range settings', () => {
 
     assert.match(prompt, /一段約 30 字的完整期末評語/);
 });
+
+test('buildCommentPrompt includes the student name when the setting is absent', () => {
+    const prompt = context.buildCommentPrompt(student, {
+        ...baseSettings,
+        includeName: undefined,
+        commentLength: 30
+    });
+
+    assert.match(prompt, /學生姓名：小明/);
+    assert.doesNotMatch(prompt, /該生/);
+});
+
+test('buildCommentPrompt keeps the anonymous reference when name inclusion is disabled', () => {
+    const prompt = context.buildCommentPrompt(student, {
+        ...baseSettings,
+        includeName: false,
+        commentLength: 30
+    });
+
+    assert.match(prompt, /學生姓名：該生/);
+});
