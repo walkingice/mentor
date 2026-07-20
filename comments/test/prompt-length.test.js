@@ -16,12 +16,17 @@ const canUseCommentActionsStart = html.indexOf('const canUseCommentActions =');
 const canUseCommentActionsEnd = html.indexOf(';', canUseCommentActionsStart) + 1;
 const canUseCommentActionsSource = html.slice(canUseCommentActionsStart, canUseCommentActionsEnd);
 
+const backupHelpersStart = html.indexOf('const createLocalStorageBackup =');
+const backupHelpersEnd = html.indexOf('const { useState', backupHelpersStart);
+const backupHelpersSource = html.slice(backupHelpersStart, backupHelpersEnd);
+
 const context = {
     DEFAULT_SETTINGS: { commentLength: 30 }
 };
 vm.runInNewContext(`${buildCommentPromptSource}; this.buildCommentPrompt = buildCommentPrompt;`, context);
 vm.runInNewContext(`${parseRosterNamesSource}; this.parseRosterNames = parseRosterNames;`, context);
 vm.runInNewContext(`${canUseCommentActionsSource}; this.canUseCommentActions = canUseCommentActions;`, context);
+vm.runInNewContext(`${backupHelpersSource}; this.createLocalStorageBackup = createLocalStorageBackup; this.parseLocalStorageBackup = parseLocalStorageBackup;`, context);
 
 const student = {
     name: '小明',
@@ -105,4 +110,44 @@ test('student rows expose centered delete and comment action controls', () => {
     assert.match(html, /absolute left-0 top-1\/2 -translate-x-1\/2 -translate-y-1\/2/);
     assert.match(html, /aria-label="清除評語"/);
     assert.match(html, /aria-label="複製評語"/);
+});
+
+test('bottom bar exposes backup export and import controls', () => {
+    assert.match(html, /匯出備份/);
+    assert.match(html, /匯入備份/);
+    assert.match(html, /accept="\.json,application\/json"/);
+    assert.match(html, /getExportFilename\(settings\.className, '備份', 'json'\)/);
+});
+
+test('localStorage backup preserves every stored key and value', () => {
+    const storage = {
+        firstKey: 'first value',
+        secondKey: '{"enabled":true}'
+    };
+    Object.defineProperty(storage, 'getItem', {
+        value(key) {
+            return this[key];
+        },
+        enumerable: false
+    });
+
+    assert.equal(JSON.stringify(context.createLocalStorageBackup(storage)), JSON.stringify({
+        firstKey: 'first value',
+        secondKey: '{"enabled":true}'
+    }));
+});
+
+test('localStorage backup parser accepts string values only', () => {
+    assert.equal(
+        JSON.stringify(context.parseLocalStorageBackup('{"teacher-settings":"{}"}')),
+        JSON.stringify({ 'teacher-settings': '{}' })
+    );
+    assert.throws(
+        () => context.parseLocalStorageBackup('{"teacher-settings":{}}'),
+        /備份檔內容不正確/
+    );
+    assert.throws(
+        () => context.parseLocalStorageBackup('[]'),
+        /備份檔格式不正確/
+    );
 });

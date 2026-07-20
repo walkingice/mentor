@@ -68,6 +68,31 @@
         const parseRosterNames = (text) => text.trim().split(/[\s,，]+/).filter(Boolean);
         const canUseCommentActions = comment => Boolean(comment?.trim());
 
+        const getExportTimestamp = now => {
+            const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+            const timeStr = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+            return `${dateStr}_${timeStr}`;
+        };
+
+        const getExportFilename = (className, label, extension) => (
+            `${className}${label}_${getExportTimestamp(new Date())}.${extension}`
+        );
+
+        const createLocalStorageBackup = storage => Object.fromEntries(
+            Object.keys(storage).map(key => [key, storage.getItem(key)])
+        );
+
+        const parseLocalStorageBackup = text => {
+            const backup = JSON.parse(text);
+            if (!backup || Array.isArray(backup) || typeof backup !== 'object') {
+                throw new Error('備份檔格式不正確。');
+            }
+            if (Object.entries(backup).some(([key, value]) => typeof key !== 'string' || typeof value !== 'string')) {
+                throw new Error('備份檔內容不正確。');
+            }
+            return backup;
+        };
+
         const { useState, useEffect, useCallback, useRef } = React;
 
         // Helper to determine tag colors dynamically based on category
@@ -213,6 +238,14 @@
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                             <polyline points="7 10 12 15 17 10" />
                             <line x1="12" x2="12" y1="15" y2="3" />
+                        </svg>
+                    );
+                case "upload":
+                    return (
+                        <svg {...svgProps}>
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="17 8 12 3 7 8" />
+                            <line x1="12" x2="12" y1="3" y2="15" />
                         </svg>
                     );
                 case "plus-circle":
@@ -865,6 +898,7 @@
             const [availableModels, setAvailableModels] = useState(DEFAULT_GEMINI_MODELS);
             const [modelError, setModelError] = useState(null);
             const [isLoadingModels, setIsLoadingModels] = useState(false);
+            const backupFileInputRef = useRef(null);
 
             useEffect(() => {
                 const apiKey = settings.apiKey?.trim();
@@ -1023,16 +1057,42 @@
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
                 
-                const now = new Date();
-                const dateStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
-                const timeStr = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
-                
                 link.href = url;
-                link.download = `${settings.className}評語_${dateStr}_${timeStr}.txt`;
+                link.download = getExportFilename(settings.className, '評語', 'txt');
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
                 URL.revokeObjectURL(url);
+            };
+
+            const handleExportBackup = () => {
+                const backup = createLocalStorageBackup(window.localStorage);
+                const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = getExportFilename(settings.className, '備份', 'json');
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            };
+
+            const handleImportBackup = async event => {
+                const file = event.target.files?.[0];
+                event.target.value = '';
+                if (!file) return;
+
+                try {
+                    const backup = parseLocalStorageBackup(await file.text());
+                    if (!window.confirm('匯入備份會覆蓋目前所有資料，確定要繼續嗎？')) return;
+                    window.localStorage.clear();
+                    Object.entries(backup).forEach(([key, value]) => window.localStorage.setItem(key, value));
+                    window.location.reload();
+                } catch (error) {
+                    console.error('Backup Import Error:', error);
+                    setGlobalError(error instanceof SyntaxError ? '備份檔不是有效的 JSON 檔案。' : error.message);
+                }
             };
 
             const openModalForStudent = (studentId) => {
@@ -1374,20 +1434,46 @@
 
                     {/* Fixed Bottom Bar for Export and Status */}
                     <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-40 p-4">
-                        <div className="max-w-5xl mx-auto flex items-center justify-between">
+                        <div className="max-w-5xl mx-auto flex flex-wrap items-center justify-between gap-3">
                             <span className="bg-blue-50 text-blue-700 text-sm font-bold px-3.5 py-1.5 rounded-full border border-blue-200 shadow-sm flex items-center gap-2">
                                 <Icon name="users" size={16} />
                                 共 {students.length} 名學生
                             </span>
-                            
-                            <button 
-                                onClick={handleExport}
-                                disabled={students.length === 0}
-                                className="flex items-center gap-2 px-6 py-3 bg-gray-800 text-white rounded-xl hover:bg-gray-900 shadow-lg hover:shadow-gray-300/50 transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                <Icon name="download" />
-                                匯出評語 (.txt)
-                            </button>
+
+                            <div className="flex flex-wrap items-center justify-end gap-2">
+                                <button
+                                    type="button"
+                                    onClick={handleExportBackup}
+                                    className="flex items-center gap-2 px-4 py-2.5 bg-sky-600 text-white rounded-xl hover:bg-sky-700 shadow-sm transition-all font-semibold"
+                                >
+                                    <Icon name="download" size={18} />
+                                    匯出備份
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => backupFileInputRef.current?.click()}
+                                    className="flex items-center gap-2 px-4 py-2.5 bg-white text-sky-700 border border-sky-200 rounded-xl hover:bg-sky-50 shadow-sm transition-all font-semibold"
+                                >
+                                    <Icon name="upload" size={18} />
+                                    匯入備份
+                                </button>
+                                <input
+                                    ref={backupFileInputRef}
+                                    type="file"
+                                    accept=".json,application/json"
+                                    onChange={handleImportBackup}
+                                    className="hidden"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={handleExport}
+                                    disabled={students.length === 0}
+                                    className="flex items-center gap-2 px-6 py-3 bg-gray-800 text-white rounded-xl hover:bg-gray-900 shadow-lg hover:shadow-gray-300/50 transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <Icon name="download" />
+                                    匯出評語 (.txt)
+                                </button>
+                            </div>
                         </div>
                     </div>
 
