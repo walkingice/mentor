@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>期末評語小幫手</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;500;600;700&family=Noto+Sans+TC:wght=400;500;700&display=swap');
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            background-color: #f3f4f6;
+        }
+        /* Custom scrollbar for textareas */
+        textarea::-webkit-scrollbar {
+            width: 8px;
+        }
+        textarea::-webkit-scrollbar-track {
+            background: #f1f1f1; 
+            border-radius: 4px;
+        }
+        textarea::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+        textarea::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const DEFAULT_PRESET_TRAITS = {
+            positive: ["好學不倦", "勤學專注", "課業認真", "富有愛心", "誠實坦白", "語言能力佳", "具有領導力", "抗壓性高", "積極樂觀", "善於溝通", "言行端正", "合群助人", "服務熱心", "做事勤快", "藝術表現佳", "數理表現佳", "語文表現佳", "課業總體優秀", "循規蹈矩", "富正義感", "忠實文靜", "性情溫和", "志向高超", "意志堅強", "沈靜忠厚", "尊敬師友"],
+            neutral: ["嚴謹務實", "反應迅速", "自我要求高", "平易近人", "律己嚴謹", "富領悟力", "富想像力", "創造力強", "字體有進步", "人緣好", "洞察力敏銳", "能獨立思考", "理智冷靜", "穩定安靜", "精力旺盛", "性情率真", "隨遇而安"],
+            negative: ["語文較差", "字體欠端正", "偶爾糊塗", "行事馬虎", "粗心大意", "略為膽怯", "個性強硬", "不善溝通合作", "不善表達", "自我強烈", "略有驕傲", "略少同理心", "不易遵守規則", "心思不定", "無法持恆", "作業常遲交", "注意力不集中", "意志薄弱", "身體虛弱", "心浮氣躁", "患得患失", "情緒不穩", "意氣用事"]
+        };
+
+        const DEFAULT_SETTINGS = {
+            className: "1年1班",
+            tone: "溫暖",
+            includeName: true,
+            includeClosing: true,
+            apiKey: ""
+        };
+
+        // Initialize default 20 students
+        const INITIAL_STUDENTS = Array.from({ length: 20 }, (_, i) => ({
+            id: crypto.randomUUID(),
+            name: `${i + 1}`,
+            traits: [],
+            comment: "",
+            isLoading: false,
+            error: null
+        }));
+
+        const { useState, useEffect, useCallback, useRef } = React;
+
+        // Helper to determine tag colors dynamically based on category
+        const getTagColorClass = (tag, presetTraits) => {
+            if (presetTraits?.positive?.includes(tag)) {
+                return {
+                    bg: "bg-emerald-50 text-emerald-700 border-emerald-200",
+                    button: "text-emerald-500 hover:text-emerald-700 hover:bg-emerald-100"
+                };
+            }
+            if (presetTraits?.negative?.includes(tag)) {
+                return {
+                    bg: "bg-rose-50 text-rose-700 border-rose-200",
+                    button: "text-rose-500 hover:text-rose-700 hover:bg-rose-100"
+                };
+            }
+            if (presetTraits?.neutral?.includes(tag)) {
+                return {
+                    bg: "bg-slate-50 text-slate-700 border-slate-200",
+                    button: "text-slate-500 hover:text-slate-700 hover:bg-slate-100"
+                };
+            }
+            // Custom tag that has been chosen but doesn't exist in preset categories
+            return {
+                bg: "bg-sky-50 text-sky-700 border-sky-200",
+                button: "text-sky-500 hover:text-sky-700 hover:bg-sky-100"
+            };
+        };
+
+        // Custom hook for localStorage
+        function useLocalStorage(key, initialValue) {
+            const [storedValue, setStoredValue] = useState(() => {
+                if (typeof window === "undefined") return initialValue;
+                try {
+                    const item = window.localStorage.getItem(key);
+                    return item ? JSON.parse(item) : initialValue;
+                } catch (error) {
+                    console.error(error);
+                    return initialValue;
+                }
+            });
+
+            const setValue = value => {
+                try {
+                    const valueToStore = value instanceof Function ? value(storedValue) : value;
+                    setStoredValue(valueToStore);
+                    if (typeof window !== "undefined") {
+                        window.localStorage.setItem(key, JSON.stringify(valueToStore));
+                    }
+                } catch (error) {
+                    console.error(error);
+                }
+            };
+            return [storedValue, setValue];
+        }
+
+        const Icon = ({ name, size = 20, className = "" }) => {
+            const svgProps = {
+                width: size,
+                height: size,
+                viewBox: "0 0 24 24",
+                fill: "none",
+                stroke: "currentColor",
+                strokeWidth: "2",
+                strokeLinecap: "round",
+                strokeLinejoin: "round",
+                className: `inline-block ${className}`
+            };
+
+            switch (name) {
+                case "sparkles":
+                    return (
+                        <svg {...svgProps}>
+                            <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
+                            <path d="m5 3 1 2.5L8.5 6 6 7 5 9.5 4 7 1.5 6 4 5.5z" />
+                            <path d="m19 17 1 2.5 2.5.5-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1z" />
+                        </svg>
+                    );
+                case "users":
+                    return (
+                        <svg {...svgProps}>
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                            <circle cx="9" cy="7" r="4" />
+                            <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                        </svg>
+                    );
+                case "mic":
+                    return (
+                        <svg {...svgProps}>
+                            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                            <line x1="12" x2="12" y1="19" y2="22" />
+                        </svg>
+                    );
+                case "alert-circle":
+                    return (
+                        <svg {...svgProps}>
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="12" x2="12" y1="8" y2="12" />
+                            <line x1="12" x2="12.01" y1="16" y2="16" />
+                        </svg>
+                    );
+                case "trash-2":
+                    return (
+                        <svg {...svgProps}>
+                            <path d="M3 6h18" />
+                            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                            <line x1="10" x2="10" y1="11" y2="17" />
+                            <line x1="14" x2="14" y1="11" y2="17" />
+                        </svg>
+                    );
+                case "loader-2":
+                    return (
+                        <svg {...svgProps} className={`animate-spin ${className}`}>
+                            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                        </svg>
+                    );
+                case "wand-2":
+                    return (
+                        <svg {...svgProps}>
+                            <path d="m15 4-2 2 2 2 2-2-2-2Z" />
+                            <path d="M11.5 6.5 3 15v3h3l8.5-8.5-3-3Z" />
+                            <path d="M18.5 12.5 16 15l2.5 2.5 2.5-2.5-2.5-2.5Z" />
+                        </svg>
+                    );
+                case "alert-triangle":
+                    return (
+                        <svg {...svgProps}>
+                            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                            <line x1="12" x2="12" y1="9" y2="13" />
+                            <line x1="12" x2="12.01" y1="17" y2="17" />
+                        </svg>
+                    );
+                case "download":
+                    return (
+                        <svg {...svgProps}>
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="7 10 12 15 17 10" />
+                            <line x1="12" x2="12" y1="15" y2="3" />
+                        </svg>
+                    );
+                case "plus-circle":
+                    return (
+                        <svg {...svgProps}>
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="12" x2="12" y1="8" y2="16" />
+                            <line x1="8" x2="16" y1="12" y2="12" />
+                        </svg>
+                    );
+                case "plus":
+                    return (
+                        <svg {...svgProps} strokeWidth="2.5">
+                            <line x1="12" x2="12" y1="5" y2="19" />
+                            <line x1="5" x2="19" y1="12" y2="12" />
+                        </svg>
+                    );
+                case "x":
+                    return (
+                        <svg {...svgProps} strokeWidth="2.5">
+                            <line x1="18" x2="6" y1="6" y2="18" />
+                            <line x1="6" x2="18" y1="6" y2="18" />
+                        </svg>
+                    );
+                case "check":
+                    return (
+                        <svg {...svgProps} strokeWidth="2.5">
+                            <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                    );
+                case "rotate-ccw":
+                    return (
+                        <svg {...svgProps}>
+                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                            <polyline points="3 3 3 8 8 8" />
+                        </svg>
+                    );
+                case "tags":
+                    return (
+                        <svg {...svgProps}>
+                            <path d="M12 2H2v10l9.29 9.29c.39.39 1.02.39 1.41 0l8.59-8.59c.39-.39.39-1.02 0-1.41L12 2z" />
+                            <path d="M5 5h.01" />
+                        </svg>
+                    );
+                case "key":
+                    return (
+                        <svg {...svgProps}>
+                            <path d="m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 1.5 1.5M15.5 7.5 14 6" />
+                        </svg>
+                    );
+                case "eye":
+                    return (
+                        <svg {...svgProps}>
+                            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                            <circle cx="12" cy="12" r="3" />
+                        </svg>
+                    );
+                case "eye-off":
+                    return (
+                        <svg {...svgProps}>
+                            <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+                            <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+                            <path d="M6.61 6.61A13.52 13.52 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+                            <line x1="2" x2="22" y1="2" y2="22" />
+                        </svg>
+                    );
+                case "external-link":
+                    return (
+                        <svg {...svgProps}>
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                            <polyline points="15 3 21 3 21 9" />
+                            <line x1="10" x2="21" y1="14" y2="3" />
+                        </svg>
+                    );
+                default:
+                    return null;
+            }
+        };
+
+        const generateCommentWithGemini = async (student, settings) => {
+            const apiKey = settings.apiKey?.trim();
+            if (!apiKey) {
+                throw new Error("請先在最上方貼上您的 Gemini API 金鑰！");
+            }
+
+            // Using stable and widely available gemini-1.5-flash for free-tier users
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+            const toneMap = {
+                "溫暖": "溫暖、充滿鼓勵與關懷",
+                "理性": "客觀、理性、具體點出事實",
+                "嚴厲": "較為嚴肅，指出缺點並給與明確的改進方向，但不過度打擊"
+            };
+
+            let prompt = `你是一位台灣國中小學教師，正在撰寫學生的期末評語。
+請根據以下資訊撰寫評語：
+- 學生姓名：${settings.includeName ? student.name : '該生'}
+- 特質標籤：${student.traits.join('、 ') || '無特別標註'}
+- 期望口吻：${toneMap[settings.tone] || settings.tone}
+- 是否包含勉勵結語：${settings.includeClosing ? '是，請在最後加一句勉勵的話' : '否，不需要勉勵結語'}
+
+強制指示：
+1. 產生的評語必須現代、口語化，像是對家長或學生說話的感覺。
+2. 開頭請盡量使用類似「老師覺得 ${settings.includeName ? student.name : '你'} 是..」、「${settings.includeName ? student.name : '你'} 是個....」、「${settings.includeName ? student.name : '你'} 一直以來....」的方式。
+3. 如果有提供特質標籤，請務必將這些特質自然地揉合進評語的句子中，不要只是條列。
+4. 絕對不要輸出任何引言（例如「這是一段評語：」）、問候語或解釋，直接輸出評語內容本身即可。
+`;
+
+            if (student.comment && student.comment.trim() !== '') {
+                prompt += `\n\n這是我目前寫好的草稿：\n「${student.comment}」\n\n請以這段草稿為基底，結合上述的「特質標籤」與「設定」重新潤飾、擴寫，讓句子更通順完整。`;
+            } else {
+                prompt += `\n\n請直接根據上述設定產生一段約 100~200 字的完整期末評語。`;
+            }
+
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: {
+                    temperature: 0.7,
+                }
+            };
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (response.status === 400 || response.status === 403) {
+                    const errorDetails = await response.json().catch(() => ({}));
+                    const errMsg = errorDetails?.error?.message || "";
+                    if (errMsg.toLowerCase().includes("api key")) {
+                        throw new Error("金鑰無效或不正確，請重新檢查您的 API 金鑰。");
+                    }
+                }
+                
+                if (!response.ok) throw new Error(`API 請求失敗，狀態碼: ${response.status}`);
+                
+                const result = await response.json();
+                if (result.candidates && result.candidates.length > 0) {
+                    let text = result.candidates[0].content.parts[0].text;
+                    // Clean up potential markdown or quotes
+                    return text.replace(/^["'「]|["'」]$/g, '').trim(); 
+                } else {
+                    throw new Error("模型未回傳內容，可能被過濾安全機制擋下。");
+                }
+            } catch (error) {
+                console.error("Generation Error:", error);
+                throw error;
+            }
+        };
+
+        const TraitsModal = ({ isOpen, onClose, onAddTraits, presetTraits, setPresetTraits }) => {
+            if (!isOpen) return null;
+
+            const [activeTab, setActiveTab] = useState('positive');
+            const [selectedTraits, setSelectedTraits] = useState([]);
+            const [newCustomTrait, setNewCustomTrait] = useState('');
+
+            const tabs = [
+                { id: 'positive', label: '正面特質', color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-500', hover: 'hover:bg-emerald-100/50' },
+                { id: 'neutral', label: '中性特質', color: 'text-slate-600', bg: 'bg-slate-50', border: 'border-slate-500', hover: 'hover:bg-slate-100/50' },
+                { id: 'negative', label: '需改進特質', color: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-500', hover: 'hover:bg-rose-100/50' }
+            ];
+
+            const currentTabStyle = tabs.find(t => t.id === activeTab);
+
+            const handleToggleTrait = (trait) => {
+                if (selectedTraits.includes(trait)) {
+                    setSelectedTraits(prev => prev.filter(t => t !== trait));
+                } else {
+                    setSelectedTraits(prev => [...prev, trait]);
+                }
+            };
+
+            const handleAddCustomTrait = (e) => {
+                e.preventDefault();
+                const trimmed = newCustomTrait.trim();
+                if (trimmed && !presetTraits[activeTab].includes(trimmed)) {
+                    setPresetTraits(prev => ({
+                        ...prev,
+                        [activeTab]: [...prev[activeTab], trimmed]
+                    }));
+                    handleToggleTrait(trimmed);
+                    setNewCustomTrait('');
+                }
+            };
+
+            const handleDeletePresetTrait = (traitToDelete, e) => {
+                e.stopPropagation(); // Avoid triggering select toggle
+                setPresetTraits(prev => ({
+                    ...prev,
+                    [activeTab]: prev[activeTab].filter(t => t !== traitToDelete)
+                }));
+                setSelectedTraits(prev => prev.filter(t => t !== traitToDelete));
+            };
+
+            const handleResetDefaults = () => {
+                if (window.confirm("確定要將所有分類標籤恢復為預設名單嗎？這將會清除您自行新增的所有特質標籤。")) {
+                    setPresetTraits(DEFAULT_PRESET_TRAITS);
+                }
+            };
+
+            const handleConfirm = () => {
+                onAddTraits(selectedTraits);
+                setSelectedTraits([]);
+                onClose();
+            };
+
+            return (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+                        
+                        {/* Modal Header */}
+                        <div className="flex justify-between items-center p-6 border-b border-gray-100">
+                            <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                                <Icon name="tags" className="text-blue-500" />
+                                選擇特質標籤
+                            </h2>
+                            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500">
+                                <Icon name="x" />
+                            </button>
+                        </div>
+                        
+                        {/* Tab Switcher */}
+                        <div className="flex border-b border-gray-100 px-6 pt-4 gap-4">
+                            {tabs.map(tab => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(tab.id)}
+                                    className={`px-4 py-2 font-medium text-sm transition-all border-b-2 -mb-px ${
+                                        activeTab === tab.id 
+                                        ? `${tab.border} ${tab.color}` 
+                                        : 'border-transparent text-gray-400 hover:text-gray-600 hover:border-gray-300'
+                                    }`}
+                                >
+                                    {tab.label}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Modal Scrollable Body */}
+                        <div className="flex-1 overflow-y-auto p-6 bg-gray-50/50">
+                            <div className="flex flex-wrap gap-2.5 mb-6">
+                                {presetTraits[activeTab].map(trait => {
+                                    const isSelected = selectedTraits.includes(trait);
+                                    // Verify if the tag is custom-added by checking against original default presets
+                                    const isCustom = !DEFAULT_PRESET_TRAITS[activeTab]?.includes(trait);
+                                    
+                                    return (
+                                        <div
+                                            key={trait}
+                                            onClick={() => handleToggleTrait(trait)}
+                                            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium cursor-pointer transition-all duration-200 border ${
+                                                isSelected 
+                                                ? `${currentTabStyle.bg} ${currentTabStyle.color} border-${activeTab === 'neutral' ? 'slate' : activeTab === 'positive' ? 'emerald' : 'rose'}-300 ring-2 ring-offset-1 ring-${activeTab === 'neutral' ? 'slate' : activeTab === 'positive' ? 'emerald' : 'rose'}-400 shadow-sm` 
+                                                : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                                            }`}
+                                        >
+                                            <span>{trait}</span>
+                                            {isCustom && (
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => handleDeletePresetTrait(trait, e)}
+                                                    title="刪除此自訂標籤"
+                                                    className="p-0.5 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-500 hover:text-rose-700 transition-colors ml-1 inline-flex items-center justify-center"
+                                                >
+                                                    <svg className="w-3 h-3 stroke-current" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                                                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                                                    </svg>
+                                                </button>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                                {presetTraits[activeTab].length === 0 && (
+                                    <p className="text-gray-400 text-sm italic py-4">此分類目前無任何標籤。請在下方新增。</p>
+                                )}
+                            </div>
+
+                            {/* Add Custom Tag Form */}
+                            <form onSubmit={handleAddCustomTrait} className="mt-8 pt-6 border-t border-gray-200">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    新增自訂{currentTabStyle.label} (將自動儲存)
+                                </label>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={newCustomTrait}
+                                        onChange={(e) => setNewCustomTrait(e.target.value)}
+                                        placeholder="輸入新標籤..."
+                                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
+                                    />
+                                    <button
+                                        type="submit"
+                                        disabled={!newCustomTrait.trim()}
+                                        className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium flex items-center gap-2"
+                                    >
+                                        <Icon name="plus" size={16} />
+                                        新增
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="p-6 border-t border-gray-100 bg-white flex flex-col sm:flex-row gap-4 items-center justify-between">
+                            <button
+                                type="button"
+                                onClick={handleResetDefaults}
+                                className="text-xs text-gray-400 hover:text-gray-600 underline flex items-center gap-1.5 self-start sm:self-center"
+                                title="重設所有特質清單為初始狀態"
+                            >
+                                <Icon name="rotate-ccw" size={12} />
+                                恢復預設特質庫
+                            </button>
+                            <div className="flex items-center gap-4 w-full sm:w-auto justify-end">
+                                <div className="text-sm text-gray-500">
+                                    已選擇 <span className="font-bold text-blue-600">{selectedTraits.length}</span> 個標籤
+                                </div>
+                                <div className="flex gap-2">
+                                    <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition-colors">取消</button>
+                                    <button 
+                                        onClick={handleConfirm}
+                                        className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-200 transition-all font-medium flex items-center gap-2"
+                                    >
+                                        <Icon name="check" size={18} />
+                                        確認加入
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const TagInput = ({ tags, onChange, onOpenModal, presetTraits }) => {
+            const [inputValue, setInputValue] = useState('');
+
+            const handleKeyDown = (e) => {
+                if (e.key === 'Enter' || e.key === 'Tab' || e.key === ' ') {
+                    e.preventDefault();
+                    const trimmed = inputValue.trim();
+                    if (trimmed && !tags.includes(trimmed)) {
+                        onChange([...tags, trimmed]);
+                    }
+                    setInputValue('');
+                } else if (e.key === 'Backspace' && !inputValue && tags.length > 0) {
+                    onChange(tags.slice(0, -1));
+                }
+            };
+
+            const removeTag = (indexToRemove) => {
+                onChange(tags.filter((_, index) => index !== indexToRemove));
+            };
+
+            return (
+                <div 
+                    onClick={(e) => {
+                        // Click background opens modal
+                        if (e.target === e.currentTarget) {
+                            onOpenModal();
+                        }
+                    }}
+                    className="flex flex-wrap items-center gap-2 p-2 min-h-[44px] border border-gray-200 rounded-lg bg-white focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all cursor-pointer hover:border-blue-300"
+                    title="點選空白處或右側圓形 + 鈕叫出特質選單"
+                >
+                    {tags.map((tag, index) => {
+                        const colors = getTagColorClass(tag, presetTraits);
+                        return (
+                            <span 
+                                key={index} 
+                                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-sm font-medium border transition-all ${colors.bg}`}
+                            >
+                                {tag}
+                                <button 
+                                    type="button" 
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        removeTag(index);
+                                    }}
+                                    className={`rounded-full p-0.5 transition-colors inline-flex items-center justify-center ${colors.button}`}
+                                    title="刪除標籤"
+                                >
+                                    <svg className="w-3 h-3 stroke-current" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                                    </svg>
+                                </button>
+                            </span>
+                        );
+                    })}
+                    <div className="flex-1 min-w-[120px] flex items-center gap-2">
+                        <input
+                            type="text"
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            onClick={(e) => e.stopPropagation()} 
+                            placeholder={tags.length === 0 ? "自訂輸入 (空白鍵新增) 點右側 + 選擇..." : "新增特質..."}
+                            className="w-full bg-transparent outline-none text-sm text-gray-700 placeholder-gray-400 cursor-text"
+                        />
+                        <button 
+                            type="button" 
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onOpenModal();
+                            }}
+                            title="從特質庫中選擇標籤"
+                            className="w-8 h-8 rounded-full border border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-600 hover:text-white flex items-center justify-center transition-all shadow-sm shrink-0 ml-auto inline-flex"
+                        >
+                            <svg className="w-4 h-4 stroke-current" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        const InsertionDivider = ({ onInsert }) => {
+            return (
+                <div className="relative flex items-center justify-center py-2 group/divider">
+                    <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                        <div className="w-full border-t border-dashed border-sky-300 group-hover/divider:border-sky-500 transition-colors"></div>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={onInsert}
+                        className="relative z-10 flex h-8 w-8 items-center justify-center rounded-full border border-sky-200 bg-sky-50 text-sky-600 shadow-md hover:bg-sky-600 hover:text-white hover:border-transparent focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all transform scale-100 group-hover/divider:scale-110 hover:shadow-lg cursor-pointer"
+                        title="在此處插入新學生"
+                    >
+                        <svg className="w-4 h-4 stroke-current" fill="none" viewBox="0 0 24 24" strokeWidth="3">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                        </svg>
+                    </button>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [settings, setSettings] = useLocalStorage('teacher-settings', DEFAULT_SETTINGS);
+            const [students, setStudents] = useLocalStorage('teacher-students', INITIAL_STUDENTS);
+            const [presetTraits, setPresetTraits] = useLocalStorage('teacher-preset-traits', DEFAULT_PRESET_TRAITS);
+            
+            const [modalConfig, setModalConfig] = useState({ isOpen: false, studentId: null });
+            const [globalError, setGlobalError] = useState(null);
+            const [deletingId, setDeletingId] = useState(null);
+            const [showApiKey, setShowApiKey] = useState(false);
+
+            const updateStudent = (id, field, value) => {
+                setStudents(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
+            };
+
+            const handleGenerateComment = async (studentId) => {
+                setGlobalError(null);
+                updateStudent(studentId, 'isLoading', true);
+                updateStudent(studentId, 'error', null);
+                
+                const student = students.find(s => s.id === studentId);
+                
+                try {
+                    const generatedText = await generateCommentWithGemini(student, settings);
+                    updateStudent(studentId, 'comment', generatedText);
+                } catch (error) {
+                    updateStudent(studentId, 'error', error.message);
+                    // Leave the error visible slightly longer so they can notice API Key alerts
+                    setTimeout(() => updateStudent(studentId, 'error', null), 12000);
+                } finally {
+                    updateStudent(studentId, 'isLoading', false);
+                }
+            };
+
+            const addStudent = () => {
+                const newId = crypto.randomUUID();
+                setStudents(prev => [...prev, {
+                    id: newId,
+                    name: `${prev.length + 1}`,
+                    traits: [],
+                    comment: "",
+                    isLoading: false,
+                    error: null
+                }]);
+                setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 100);
+            };
+
+            const insertStudentAt = (index) => {
+                const newId = crypto.randomUUID();
+                const newStudent = {
+                    id: newId,
+                    name: `${students.length + 1}`,
+                    traits: [],
+                    comment: "",
+                    isLoading: false,
+                    error: null
+                };
+                setStudents(prev => {
+                    const updated = [...prev];
+                    updated.splice(index, 0, newStudent);
+                    return updated;
+                });
+            };
+
+            const removeStudent = (id) => {
+                setStudents(prev => prev.filter(s => s.id !== id));
+                setDeletingId(null);
+            };
+
+            const handleExport = () => {
+                if (students.length === 0) return;
+                
+                let content = `${settings.className} 期末評語\n`;
+                content += `匯出時間：${new Date().toLocaleString('zh-TW')}\n`;
+                content += `=====================================\n\n`;
+
+                students.forEach(s => {
+                    content += `【${s.name}】\n`;
+                    content += `特質：${s.traits.join(', ') || '無'}\n`;
+                    content += `評語：\n${s.comment || '(尚未填寫)'}\n\n`;
+                    content += `-------------------------------------\n\n`;
+                });
+
+                const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                
+                const now = new Date();
+                const dateStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+                const timeStr = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+                
+                link.href = url;
+                link.download = `${settings.className}評語_${dateStr}_${timeStr}.txt`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            };
+
+            const openModalForStudent = (studentId) => {
+                setModalConfig({ isOpen: true, studentId });
+            };
+
+            const handleAddTraitsFromModal = (selectedTraits) => {
+                if (modalConfig.studentId && selectedTraits.length > 0) {
+                    const student = students.find(s => s.id === modalConfig.studentId);
+                    const newTraits = [...new Set([...student.traits, ...selectedTraits])];
+                    updateStudent(modalConfig.studentId, 'traits', newTraits);
+                }
+            };
+
+            return (
+                <div className="min-h-screen pb-28">
+                    {/* Header & Settings */}
+                    <header className="bg-white shadow-sm sticky top-0 z-40 border-b border-gray-200">
+                        <div className="max-w-5xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                                    <div className="flex items-center gap-3">
+                                        <div className="bg-blue-600 p-2 rounded-xl shadow-inner">
+                                            <Icon name="sparkles" className="text-white" size={24} />
+                                        </div>
+                                        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">期末評語小幫手</h1>
+                                    </div>
+                                    
+                                    {/* Responsive Secure Gemini API Key Setting with Direct Sign up Portal Link */}
+                                    <div className="flex items-center gap-2 bg-blue-50/75 hover:bg-blue-50 border border-blue-100 rounded-xl px-3 py-2 shrink-0 transition-colors">
+                                        <Icon name="key" size={16} className="text-blue-500 shrink-0" />
+                                        <input
+                                            type={showApiKey ? "text" : "password"}
+                                            value={settings.apiKey || ""}
+                                            onChange={e => setSettings({...settings, apiKey: e.target.value})}
+                                            placeholder="請貼上 Gemini API 金鑰"
+                                            className="bg-transparent text-sm font-medium text-gray-700 outline-none w-44 placeholder-blue-300 border-none focus:ring-0 p-0"
+                                        />
+                                        <button 
+                                            type="button" 
+                                            onClick={() => setShowApiKey(!showApiKey)}
+                                            className="text-blue-400 hover:text-blue-600 transition-colors inline-flex items-center"
+                                            title={showApiKey ? "隱藏金鑰" : "顯示金鑰"}
+                                        >
+                                            <Icon name={showApiKey ? "eye-off" : "eye"} size={16} />
+                                        </button>
+                                        <a 
+                                            href="https://aistudio.google.com/" 
+                                            target="_blank" 
+                                            rel="noopener noreferrer" 
+                                            className="text-xs text-blue-600 hover:underline hover:text-blue-800 flex items-center gap-0.5 ml-1.5 border-l border-blue-200 pl-2 shrink-0 font-medium"
+                                            title="前往 Google AI Studio 免費申請您的專屬金鑰 (使用 Google 帳號)"
+                                        >
+                                            <span>申請金鑰</span>
+                                            <Icon name="external-link" size={12} />
+                                        </a>
+                                    </div>
+                                </div>
+                                
+                                <div className="flex flex-wrap items-center gap-3 bg-gray-50 p-2 rounded-xl border border-gray-200 shadow-sm">
+                                    <div className="flex items-center gap-2 px-2">
+                                        <Icon name="users" size={16} className="text-gray-500" />
+                                        <input 
+                                            type="text" 
+                                            value={settings.className}
+                                            onChange={e => setSettings({...settings, className: e.target.value})}
+                                            className="w-24 bg-transparent font-semibold text-gray-700 border-b-2 border-transparent focus:border-blue-500 outline-none transition-colors"
+                                            placeholder="班級名稱"
+                                        />
+                                    </div>
+                                    <div className="h-6 w-px bg-gray-300"></div>
+                                    <div className="flex items-center gap-2 px-2">
+                                        <Icon name="mic" size={16} className="text-gray-500" />
+                                        <select 
+                                            value={settings.tone}
+                                            onChange={e => setSettings({...settings, tone: e.target.value})}
+                                            className="bg-transparent font-medium text-gray-700 outline-none cursor-pointer"
+                                        >
+                                            <option value="溫慢">溫暖鼓勵</option>
+                                            <option value="理性">理性客觀</option>
+                                            <option value="嚴厲">嚴厲鞭策</option>
+                                        </select>
+                                    </div>
+                                    <div className="h-6 w-px bg-gray-300"></div>
+                                    <label className="flex items-center gap-2 px-2 cursor-pointer group">
+                                        <input 
+                                            type="checkbox" 
+                                            checked={settings.includeName}
+                                            onChange={e => setSettings({...settings, includeName: e.target.checked})}
+                                            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 border-gray-300 cursor-pointer"
+                                        />
+                                        <span className="text-sm font-medium text-gray-600 group-hover:text-gray-900 transition-colors">帶入姓名</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 px-2 cursor-pointer group">
+                                        <input 
+                                            type="checkbox" 
+                                            checked={settings.includeClosing}
+                                            onChange={e => setSettings({...settings, includeClosing: e.target.checked})}
+                                            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 border-gray-300 cursor-pointer"
+                                        />
+                                        <span className="text-sm font-medium text-gray-600 group-hover:text-gray-900 transition-colors">勉勵結語</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* Main Content: Student List */}
+                    <main className="max-w-5xl mx-auto px-4 py-6 sm:px-6 lg:px-8 space-y-2">
+                        {globalError && (
+                            <div className="bg-red-50 text-red-600 p-4 rounded-xl flex items-start gap-3 border border-red-100 mb-4 animate-bounce">
+                                <Icon name="alert-circle" className="shrink-0 mt-0.5" />
+                                <div>
+                                    <h4 className="font-semibold">系統錯誤</h4>
+                                    <p className="text-sm mt-1">{globalError}</p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* First Insertion Line */}
+                        {students.length > 0 && (
+                            <InsertionDivider onInsert={() => insertStudentAt(0)} />
+                        )}
+
+                        {/* Student Cards Loop */}
+                        {students.map((student, index) => (
+                            <React.Fragment key={student.id}>
+                                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow group relative">
+                                    
+                                    {/* Action Buttons */}
+                                    <div className="absolute top-4 right-4 z-10">
+                                        {deletingId === student.id ? (
+                                            <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 p-1 rounded-lg shadow-sm">
+                                                <span className="text-xs text-red-700 font-medium px-1">確定刪除？</span>
+                                                <button
+                                                    onClick={() => removeStudent(student.id)}
+                                                    className="bg-red-600 hover:bg-red-700 text-white text-xs px-2 py-1 rounded font-semibold transition-colors"
+                                                >
+                                                    確認
+                                                </button>
+                                                <button
+                                                    onClick={() => setDeletingId(null)}
+                                                    className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded font-semibold transition-colors"
+                                                >
+                                                    取消
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <button 
+                                                onClick={() => setDeletingId(student.id)}
+                                                className="text-gray-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 transition-colors bg-white border border-gray-100 hover:border-red-200 shadow-sm"
+                                                title="刪除學生"
+                                            >
+                                                <Icon name="trash-2" size={18} />
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {/* Responsive card layout utilizing items-stretch to balance left and right panel spacing */}
+                                    <div className="p-5 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+                                        
+                                        {/* Left Column: Meta & Actions */}
+                                        <div className="lg:col-span-5 space-y-4 flex flex-col justify-between">
+                                            <div className="space-y-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-50 text-blue-600 border border-blue-100 font-bold text-sm">
+                                                        {index + 1}
+                                                    </div>
+                                                    <div className="flex-1 pr-8"> 
+                                                        <input
+                                                            type="text"
+                                                            value={student.name}
+                                                            onChange={(e) => updateStudent(student.id, 'name', e.target.value)}
+                                                            placeholder="學生姓名或座號"
+                                                            className="w-full text-lg font-bold text-gray-800 border-b border-dashed border-gray-300 focus:border-blue-500 pb-1 outline-none transition-colors bg-transparent"
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                                                        特質標籤
+                                                    </label>
+                                                    <TagInput 
+                                                        tags={student.traits} 
+                                                        onChange={(newTags) => updateStudent(student.id, 'traits', newTags)} 
+                                                        onOpenModal={() => openModalForStudent(student.id)}
+                                                        presetTraits={presetTraits}
+                                                    />
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="pt-2">
+                                                <button
+                                                    onClick={() => handleGenerateComment(student.id)}
+                                                    disabled={student.isLoading}
+                                                    className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-semibold transition-all ${
+                                                        student.isLoading 
+                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                        : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 shadow-md hover:shadow-lg shadow-blue-500/30'
+                                                    }`}
+                                                >
+                                                    {student.isLoading ? (
+                                                        <Icon name="loader-2" className="animate-spin" />
+                                                    ) : (
+                                                        <Icon name="wand-2" />
+                                                    )}
+                                                    {student.isLoading ? '撰寫中...' : (student.comment ? '潤飾 / 擴寫' : '產生評語')}
+                                                </button>
+                                                
+                                                {student.error && (
+                                                    <p className="text-xs text-red-500 text-center flex items-center justify-center gap-1 mt-2 font-medium bg-red-50 py-1.5 px-2.5 rounded-lg border border-red-100">
+                                                        <Icon name="alert-triangle" size={12} className="shrink-0" />
+                                                        <span>{student.error}</span>
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Right Column: Textarea with balanced padding and proper wide-screen spacing */}
+                                        <div className="lg:col-span-7 flex flex-col h-full min-h-[180px] lg:min-h-[220px]">
+                                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">評語內容</label>
+                                            <div className="flex-1 w-full h-full relative">
+                                                <textarea
+                                                    value={student.comment}
+                                                    onChange={(e) => updateStudent(student.id, 'comment', e.target.value)}
+                                                    placeholder="可留空讓 AI 完全自動產生，或在此輸入您的草稿，點擊左下方按鈕讓 AI 幫您潤飾、擴寫、修飾語氣。"
+                                                    className="absolute inset-0 w-full h-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all outline-none resize-none text-gray-700 leading-relaxed overflow-y-auto"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Insertion Line after each student */}
+                                <InsertionDivider onInsert={() => insertStudentAt(index + 1)} />
+                            </React.Fragment>
+                        ))}
+
+                        {/* Add student button at the bottom */}
+                        <button 
+                            onClick={addStudent}
+                            className="w-full py-4 border-2 border-dashed border-gray-300 rounded-2xl text-gray-500 font-medium hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 transition-all flex justify-center items-center gap-2 shadow-sm"
+                        >
+                            <Icon name="plus-circle" />
+                            新增一位學生至最尾端
+                        </button>
+                    </main>
+
+                    {/* Fixed Bottom Bar for Export and Status */}
+                    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-40 p-4">
+                        <div className="max-w-5xl mx-auto flex items-center justify-between">
+                            <span className="bg-blue-50 text-blue-700 text-sm font-bold px-3.5 py-1.5 rounded-full border border-blue-200 shadow-sm flex items-center gap-2">
+                                <Icon name="users" size={16} />
+                                共 {students.length} 名學生
+                            </span>
+                            
+                            <button 
+                                onClick={handleExport}
+                                disabled={students.length === 0}
+                                className="flex items-center gap-2 px-6 py-3 bg-gray-800 text-white rounded-xl hover:bg-gray-900 shadow-lg hover:shadow-gray-300/50 transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <Icon name="download" />
+                                匯出所有評語 (.txt)
+                            </button>
+                        </div>
+                    </div>
+
+                    <TraitsModal 
+                        isOpen={modalConfig.isOpen}
+                        onClose={() => setModalConfig({ isOpen: false, studentId: null })}
+                        onAddTraits={handleAddTraitsFromModal}
+                        presetTraits={presetTraits}
+                        setPresetTraits={setPresetTraits}
+                    />
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
