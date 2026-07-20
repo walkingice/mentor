@@ -55,15 +55,17 @@
             "gemini-3.5-flash"
         ];
 
-        // Initialize default 20 students
-        const INITIAL_STUDENTS = Array.from({ length: 20 }, (_, i) => ({
+        const createStudent = () => ({
             id: crypto.randomUUID(),
-            name: `${i + 1}`,
+            name: "",
             traits: [],
             comment: "",
             isLoading: false,
             error: null
-        }));
+        });
+
+        // Initialize default 20 students
+        const INITIAL_STUDENTS = Array.from({ length: 20 }, createStudent);
 
         const parseRosterNames = (text) => text.trim().split(/[\s,，]+/).filter(Boolean);
         const canUseCommentActions = comment => Boolean(comment?.trim());
@@ -1015,28 +1017,12 @@
             };
 
             const addStudent = () => {
-                const newId = crypto.randomUUID();
-                setStudents(prev => [...prev, {
-                    id: newId,
-                    name: `${prev.length + 1}`,
-                    traits: [],
-                    comment: "",
-                    isLoading: false,
-                    error: null
-                }]);
+                setStudents(prev => [...prev, createStudent()]);
                 setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 100);
             };
 
             const insertStudentAt = (index) => {
-                const newId = crypto.randomUUID();
-                const newStudent = {
-                    id: newId,
-                    name: `${students.length + 1}`,
-                    traits: [],
-                    comment: "",
-                    isLoading: false,
-                    error: null
-                };
+                const newStudent = createStudent();
                 setStudents(prev => {
                     const updated = [...prev];
                     updated.splice(index, 0, newStudent);

@@ -16,6 +16,10 @@ const canUseCommentActionsStart = html.indexOf('const canUseCommentActions =');
 const canUseCommentActionsEnd = html.indexOf(';', canUseCommentActionsStart) + 1;
 const canUseCommentActionsSource = html.slice(canUseCommentActionsStart, canUseCommentActionsEnd);
 
+const createStudentStart = html.indexOf('const createStudent =');
+const createStudentEnd = html.indexOf('};', createStudentStart) + 2;
+const createStudentSource = html.slice(createStudentStart, createStudentEnd);
+
 const backupHelpersStart = html.indexOf('const removeApiKeyFromSettings =');
 const backupHelpersEnd = html.indexOf('const { useState', backupHelpersStart);
 const backupHelpersSource = html.slice(backupHelpersStart, backupHelpersEnd);
@@ -26,6 +30,10 @@ const context = {
 vm.runInNewContext(`${buildCommentPromptSource}; this.buildCommentPrompt = buildCommentPrompt;`, context);
 vm.runInNewContext(`${parseRosterNamesSource}; this.parseRosterNames = parseRosterNames;`, context);
 vm.runInNewContext(`${canUseCommentActionsSource}; this.canUseCommentActions = canUseCommentActions;`, context);
+const studentContext = {
+    crypto: { randomUUID: () => 'test-id' }
+};
+vm.runInNewContext(`${createStudentSource}; this.createStudent = createStudent;`, studentContext);
 vm.runInNewContext(`${backupHelpersSource}; this.createLocalStorageBackup = createLocalStorageBackup; this.parseLocalStorageBackup = parseLocalStorageBackup; this.preserveCurrentApiKey = preserveCurrentApiKey;`, context);
 
 const student = {
@@ -104,6 +112,13 @@ test('comment actions are enabled only when comment has content', () => {
     assert.equal(context.canUseCommentActions(''), false);
     assert.equal(context.canUseCommentActions('   '), false);
     assert.equal(context.canUseCommentActions('老師覺得小明很認真。'), true);
+});
+
+test('new students start with an empty name', () => {
+    assert.equal(studentContext.createStudent().name, '');
+    assert.match(createStudentSource, /name: ""/);
+    assert.match(html, /Array\.from\(\{ length: 20 \}, createStudent\)/);
+    assert.equal((html.match(/createStudent\(\)/g) || []).length, 2);
 });
 
 test('student rows expose centered delete and comment action controls', () => {
