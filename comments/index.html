@@ -1177,13 +1177,14 @@
                 <div className="min-h-screen pb-28">
                     {/* Header & Settings */}
                     <header className="bg-white shadow-sm sticky top-0 z-40 border-b border-gray-200">
-                        <div className="max-w-5xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
-                            <div className="flex flex-col gap-4">
-                                <h1 className="text-2xl font-bold text-gray-900 tracking-tight">期末評語小幫手</h1>
+                        <div className="max-w-7xl mx-auto px-4 py-3 sm:px-6 lg:px-8">
+                            <div className="flex flex-col gap-3">
+                                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+                                    <h1 className="text-2xl font-bold text-gray-900 tracking-tight">期末評語小幫手</h1>
 
-                                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 lg:justify-end">
                                     {/* Responsive Secure Gemini API Key Setting with Direct Sign up Portal Link */}
-                                    <div className="flex items-center gap-2 bg-blue-50/75 hover:bg-blue-50 border border-blue-100 rounded-xl px-3 py-2 transition-colors sm:flex-1">
+                                    <div className="flex items-center gap-2 bg-blue-50/75 hover:bg-blue-50 border border-blue-100 rounded-xl px-3 py-2 transition-colors lg:min-w-[28rem]">
                                         <Icon name="key" size={16} className="text-blue-500 shrink-0" />
                                         <input
                                             type={showApiKey ? "text" : "password"}
@@ -1247,6 +1248,7 @@
                                         >
                                             <Icon name={isLoadingModels ? "loader-2" : "rotate-ccw"} size={14} />
                                         </button>
+                                    </div>
                                     </div>
                                 </div>
 

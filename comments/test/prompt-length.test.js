@@ -154,6 +154,13 @@ test('model discovery only runs from the manual refresh control', () => {
     assert.match(html, /aria-label="重新整理 Model 清單"/);
 });
 
+test('header places API key and model controls beside the title on wide screens', () => {
+    assert.match(html, /max-w-7xl mx-auto px-4 py-3 sm:px-6 lg:px-8/);
+    assert.match(html, /flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3/);
+    assert.match(html, /lg:min-w-\[28rem\]/);
+    assert.match(html, /<h1[\s\S]*?<\/h1>[\s\S]*?Responsive Secure Gemini API Key Setting/);
+});
+
 test('localStorage backup preserves every stored key and value', () => {
     const storage = {
         firstKey: 'first value',
