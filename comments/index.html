@@ -66,6 +66,7 @@
         }));
 
         const parseRosterNames = (text) => text.trim().split(/[\s,，]+/).filter(Boolean);
+        const canUseCommentActions = comment => Boolean(comment?.trim());
 
         const { useState, useEffect, useCallback, useRef } = React;
 
@@ -284,6 +285,21 @@
                             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
                             <polyline points="15 3 21 3 21 9" />
                             <line x1="10" x2="21" y1="14" y2="3" />
+                        </svg>
+                    );
+                case "copy":
+                    return (
+                        <svg {...svgProps}>
+                            <rect x="9" y="9" width="11" height="11" rx="2" />
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                        </svg>
+                    );
+                case "eraser":
+                    return (
+                        <svg {...svgProps}>
+                            <path d="m7 21 10-10" />
+                            <path d="m5 15 6-6 6 6-4 4H7a2 2 0 0 1-2-2v-2Z" />
+                            <path d="m14 5 2-2a2 2 0 0 1 3 0l2 2a2 2 0 0 1 0 3l-2 2" />
                         </svg>
                     );
                 default:
@@ -844,6 +860,7 @@
             const [promptPreview, setPromptPreview] = useState(null);
             const [globalError, setGlobalError] = useState(null);
             const [deletingId, setDeletingId] = useState(null);
+            const [copiedId, setCopiedId] = useState(null);
             const [showApiKey, setShowApiKey] = useState(false);
             const [availableModels, setAvailableModels] = useState(DEFAULT_GEMINI_MODELS);
             const [modelError, setModelError] = useState(null);
@@ -970,6 +987,22 @@
             const removeStudent = (id) => {
                 setStudents(prev => prev.filter(s => s.id !== id));
                 setDeletingId(null);
+            };
+
+            const clearStudentComment = (id) => {
+                updateStudent(id, 'comment', '');
+            };
+
+            const copyStudentComment = async (student) => {
+                if (!canUseCommentActions(student.comment) || !navigator.clipboard) return;
+
+                try {
+                    await navigator.clipboard.writeText(student.comment);
+                    setCopiedId(student.id);
+                    setTimeout(() => setCopiedId(currentId => currentId === student.id ? null : currentId), 1500);
+                } catch (error) {
+                    console.error('Copy Comment Error:', error);
+                }
             };
 
             const handleExport = () => {
@@ -1180,10 +1213,10 @@
                         {/* Student Cards Loop */}
                         {students.map((student, index) => (
                             <React.Fragment key={student.id}>
-                                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow group relative">
+                                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-visible hover:shadow-md transition-shadow group relative">
                                     
                                     {/* Action Buttons */}
-                                    <div className="absolute top-4 right-4 z-10">
+                                    <div className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
                                         {deletingId === student.id ? (
                                             <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 p-1 rounded-lg shadow-sm">
                                                 <span className="text-xs text-red-700 font-medium px-1">確定刪除？</span>
@@ -1204,7 +1237,8 @@
                                             <button 
                                                 onClick={() => setDeletingId(student.id)}
                                                 className="text-gray-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 transition-colors bg-white border border-gray-100 hover:border-red-200 shadow-sm"
-                                                title="刪除學生"
+                                                title="刪除本列"
+                                                aria-label="刪除本列"
                                             >
                                                 <Icon name="trash-2" size={18} />
                                             </button>
@@ -1292,8 +1326,32 @@
                                                     value={student.comment}
                                                     onChange={(e) => updateStudent(student.id, 'comment', e.target.value)}
                                                     placeholder="可留空讓 AI 完全自動產生，或在此輸入您的草稿，點擊左下方按鈕讓 AI 幫您潤飾、擴寫、修飾語氣。"
-                                                    className="absolute inset-0 w-full h-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all outline-none resize-none text-gray-700 leading-relaxed overflow-y-auto"
+                                                    className="absolute inset-0 w-full h-full p-4 pb-14 pr-28 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all outline-none resize-none text-gray-700 leading-relaxed overflow-y-auto"
                                                 />
+                                                <div className="absolute bottom-3 right-3 flex items-center gap-1">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => clearStudentComment(student.id)}
+                                                        disabled={!canUseCommentActions(student.comment)}
+                                                        className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40"
+                                                        title="清除評語"
+                                                        aria-label="清除評語"
+                                                    >
+                                                        <Icon name="eraser" size={15} />
+                                                        清除
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => copyStudentComment(student)}
+                                                        disabled={!canUseCommentActions(student.comment)}
+                                                        className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-40"
+                                                        title="複製評語"
+                                                        aria-label="複製評語"
+                                                    >
+                                                        <Icon name={copiedId === student.id ? 'check' : 'copy'} size={15} />
+                                                        {copiedId === student.id ? '已複製' : '複製'}
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

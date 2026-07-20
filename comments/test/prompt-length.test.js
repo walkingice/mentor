@@ -12,11 +12,16 @@ const parseRosterNamesStart = html.indexOf('const parseRosterNames =');
 const parseRosterNamesEnd = html.indexOf(';', parseRosterNamesStart) + 1;
 const parseRosterNamesSource = html.slice(parseRosterNamesStart, parseRosterNamesEnd);
 
+const canUseCommentActionsStart = html.indexOf('const canUseCommentActions =');
+const canUseCommentActionsEnd = html.indexOf(';', canUseCommentActionsStart) + 1;
+const canUseCommentActionsSource = html.slice(canUseCommentActionsStart, canUseCommentActionsEnd);
+
 const context = {
     DEFAULT_SETTINGS: { commentLength: 30 }
 };
 vm.runInNewContext(`${buildCommentPromptSource}; this.buildCommentPrompt = buildCommentPrompt;`, context);
 vm.runInNewContext(`${parseRosterNamesSource}; this.parseRosterNames = parseRosterNames;`, context);
+vm.runInNewContext(`${canUseCommentActionsSource}; this.canUseCommentActions = canUseCommentActions;`, context);
 
 const student = {
     name: '小明',
@@ -88,4 +93,16 @@ test('parseRosterNames splits names by half-width and full-width commas', () => 
         '小華',
         '小美'
     ]);
+});
+
+test('comment actions are enabled only when comment has content', () => {
+    assert.equal(context.canUseCommentActions(''), false);
+    assert.equal(context.canUseCommentActions('   '), false);
+    assert.equal(context.canUseCommentActions('老師覺得小明很認真。'), true);
+});
+
+test('student rows expose centered delete and comment action controls', () => {
+    assert.match(html, /absolute left-0 top-1\/2 -translate-x-1\/2 -translate-y-1\/2/);
+    assert.match(html, /aria-label="清除評語"/);
+    assert.match(html, /aria-label="複製評語"/);
 });
