@@ -8,10 +8,15 @@ const functionStart = html.indexOf('const buildCommentPrompt =');
 const functionEnd = html.indexOf('const generateCommentWithGemini =', functionStart);
 const buildCommentPromptSource = html.slice(functionStart, functionEnd);
 
+const parseRosterNamesStart = html.indexOf('const parseRosterNames =');
+const parseRosterNamesEnd = html.indexOf(';', parseRosterNamesStart) + 1;
+const parseRosterNamesSource = html.slice(parseRosterNamesStart, parseRosterNamesEnd);
+
 const context = {
     DEFAULT_SETTINGS: { commentLength: 30 }
 };
 vm.runInNewContext(`${buildCommentPromptSource}; this.buildCommentPrompt = buildCommentPrompt;`, context);
+vm.runInNewContext(`${parseRosterNamesSource}; this.parseRosterNames = parseRosterNames;`, context);
 
 const student = {
     name: '小明',
@@ -62,4 +67,17 @@ test('buildCommentPrompt keeps the anonymous reference when name inclusion is di
     });
 
     assert.match(prompt, /學生姓名：該生/);
+});
+
+test('parseRosterNames splits names by whitespace', () => {
+    assert.deepEqual(Array.from(context.parseRosterNames('小明\n小華\t小美  小強')), [
+        '小明',
+        '小華',
+        '小美',
+        '小強'
+    ]);
+});
+
+test('parseRosterNames ignores surrounding and repeated whitespace', () => {
+    assert.deepEqual(Array.from(context.parseRosterNames('  小明\n\n 小華  ')), ['小明', '小華']);
 });
