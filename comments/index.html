@@ -329,7 +329,7 @@
 - 學生姓名：${settings.includeName ? student.name : '該生'}
 - 特質標籤：${student.traits.join('、 ') || '無特別標註'}
 - 期望口吻：${toneMap[settings.tone] || settings.tone}
-- 是否包含勉勵結語：${settings.includeClosing ? '是，請在最後加一句勉勵的話' : '否，不需要勉勵結語'}
+- 是否包含勉勵結語：${settings.includeClosing ? '是，請在最後加一些勉勵的話' : '否，不需要勉勵結語'}
 
 強制指示：
 1. 產生的評語必須現代、口語化，像是對家長或學生說話的感覺。
@@ -339,9 +339,9 @@
 `;
 
             if (student.comment && student.comment.trim() !== '') {
-                prompt += `\n\n這是我目前寫好的草稿：\n「${student.comment}」\n\n請以這段草稿為基底，結合上述的「特質標籤」與「設定」重新潤飾、擴寫，讓句子更通順完整。`;
+                prompt += `\n\n這是我目前寫好的草稿：\n「${student.comment}」\n\n請以這段草稿為基底，結合上述的「特質標籤」與「設定」重新潤飾、擴寫，讓句子更通順完整，字數約 30~50字。`;
             } else {
-                prompt += `\n\n請直接根據上述設定產生一段約 100~200 字的完整期末評語。`;
+                prompt += `\n\n請直接根據上述設定產生一段約 30~50 字的完整期末評語。`;
             }
 
             return prompt;
