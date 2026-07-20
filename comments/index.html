@@ -45,8 +45,15 @@
             tone: "溫暖",
             includeName: true,
             includeClosing: true,
-            apiKey: ""
+            apiKey: "",
+            model: "gemini-3.5-flash"
         };
+
+        const DEFAULT_GEMINI_MODELS = [
+            "gemini-3.5-flash",
+            "gemini-3.1-flash-lite",
+            "gemini-2.5-flash"
+        ];
 
         // Initialize default 20 students
         const INITIAL_STUDENTS = Array.from({ length: 20 }, (_, i) => ({
@@ -278,7 +285,25 @@
             }
         };
 
-        const GEMINI_MODEL = "gemini-2.5-flash";
+        const getModelId = modelName => modelName.replace(/^models\//, '');
+
+        const fetchAvailableGeminiModels = async apiKey => {
+            const response = await fetch(
+                'https://generativelanguage.googleapis.com/v1beta/models',
+                { headers: { 'x-goog-api-key': apiKey } }
+            );
+            const result = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                const errorMessage = result?.error?.message;
+                throw new Error(errorMessage || `模型清單請求失敗，狀態碼: ${response.status}`);
+            }
+
+            return (result.models || [])
+                .filter(model => (model.supportedGenerationMethods || []).includes('generateContent'))
+                .map(model => getModelId(model.name))
+                .filter(Boolean);
+        };
 
         const generateCommentWithGemini = async (student, settings) => {
             const apiKey = settings.apiKey?.trim();
@@ -286,7 +311,8 @@
                 throw new Error("請先在最上方貼上您的 Gemini API 金鑰！");
             }
 
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+            const model = settings.model || DEFAULT_GEMINI_MODELS[0];
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
             const toneMap = {
                 "溫暖": "溫暖、充滿鼓勵與關懷",
@@ -324,7 +350,10 @@
             try {
                 const response = await fetch(apiUrl, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-goog-api-key': apiKey
+                    },
                     body: JSON.stringify(payload)
                 });
                 
@@ -660,6 +689,42 @@
             const [globalError, setGlobalError] = useState(null);
             const [deletingId, setDeletingId] = useState(null);
             const [showApiKey, setShowApiKey] = useState(false);
+            const [availableModels, setAvailableModels] = useState(DEFAULT_GEMINI_MODELS);
+            const [modelError, setModelError] = useState(null);
+            const [isLoadingModels, setIsLoadingModels] = useState(false);
+
+            useEffect(() => {
+                const apiKey = settings.apiKey?.trim();
+                if (!apiKey) {
+                    setAvailableModels(DEFAULT_GEMINI_MODELS);
+                    setModelError(null);
+                    return undefined;
+                }
+
+                const timeoutId = setTimeout(async () => {
+                    setIsLoadingModels(true);
+                    setModelError(null);
+                    try {
+                        const models = await fetchAvailableGeminiModels(apiKey);
+                        if (models.length === 0) {
+                            throw new Error("此 API 金鑰沒有可用的 generateContent model。");
+                        }
+
+                        setAvailableModels(models);
+                        if (!models.includes(settings.model)) {
+                            setSettings({ ...settings, model: models[0] });
+                        }
+                    } catch (error) {
+                        console.error("Model Discovery Error:", error);
+                        setAvailableModels(DEFAULT_GEMINI_MODELS);
+                        setModelError(error.message);
+                    } finally {
+                        setIsLoadingModels(false);
+                    }
+                }, 500);
+
+                return () => clearTimeout(timeoutId);
+            }, [settings.apiKey]);
 
             const updateStudent = (id, field, value) => {
                 setStudents(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
@@ -804,6 +869,28 @@
                                             <Icon name="external-link" size={12} />
                                         </a>
                                     </div>
+                                    <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 shrink-0">
+                                        <label htmlFor="gemini-model" className="text-xs font-semibold text-gray-500 whitespace-nowrap">
+                                            Model
+                                        </label>
+                                        <select
+                                            id="gemini-model"
+                                            value={settings.model || availableModels[0]}
+                                            onChange={e => setSettings({ ...settings, model: e.target.value })}
+                                            disabled={isLoadingModels}
+                                            className="max-w-[220px] bg-transparent text-sm font-medium text-gray-700 outline-none cursor-pointer disabled:cursor-wait"
+                                        >
+                                            {availableModels.map(model => (
+                                                <option key={model} value={model}>{model}</option>
+                                            ))}
+                                        </select>
+                                        {isLoadingModels && <Icon name="loader-2" size={14} className="text-gray-400" />}
+                                    </div>
+                                    {modelError && (
+                                        <p className="w-full text-xs text-amber-700 px-2">
+                                            無法更新 Model 清單，暫使用預設清單：{modelError}
+                                        </p>
+                                    )}
                                 </div>
                                 
                                 <div className="flex flex-wrap items-center gap-3 bg-gray-50 p-2 rounded-xl border border-gray-200 shadow-sm">
