@@ -81,3 +81,11 @@ test('parseRosterNames splits names by whitespace', () => {
 test('parseRosterNames ignores surrounding and repeated whitespace', () => {
     assert.deepEqual(Array.from(context.parseRosterNames('  小明\n\n 小華  ')), ['小明', '小華']);
 });
+
+test('parseRosterNames splits names by half-width and full-width commas', () => {
+    assert.deepEqual(Array.from(context.parseRosterNames('小明,小華， 小美')), [
+        '小明',
+        '小華',
+        '小美'
+    ]);
+});

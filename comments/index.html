@@ -65,7 +65,7 @@
             error: null
         }));
 
-        const parseRosterNames = (text) => text.trim().split(/\s+/).filter(Boolean);
+        const parseRosterNames = (text) => text.trim().split(/[\s,，]+/).filter(Boolean);
 
         const { useState, useEffect, useCallback, useRef } = React;
 
@@ -519,7 +519,7 @@
                         </div>
                         <div className="p-6 space-y-4">
                             <p className="text-sm leading-relaxed text-gray-600">
-                                請上傳 txt 檔，裡面是學生名字。以空白或換行來分隔。請注意，上傳後會清空重設目前的列表
+                                請上傳 txt 檔，裡面是學生名字。以空白、換行或逗號來分隔。請注意，上傳後會清空重設目前的列表
                             </p>
                             <input
                                 type="file"
