@@ -343,7 +343,7 @@
             return prompt;
         };
 
-        const generateCommentWithGemini = async (student, settings, prompt = buildCommentPrompt(student, settings)) => {
+        const generateCommentWithGemini = async (student, settings, prompt) => {
             const apiKey = settings.apiKey?.trim();
             if (!apiKey) {
                 throw new Error("請先在最上方貼上您的 Gemini API 金鑰！");
@@ -353,8 +353,9 @@
                 ? settings.model
                 : DEFAULT_GEMINI_MODELS[0];
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+            const requestPrompt = prompt ?? buildCommentPrompt(student, settings);
             const payload = {
-                contents: [{ parts: [{ text: prompt }] }],
+                contents: [{ parts: [{ text: requestPrompt }] }],
                 generationConfig: {
                     temperature: 0.7,
                 }
