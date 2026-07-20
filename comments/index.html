@@ -77,6 +77,16 @@
     <div id="root"></div>
 
     <script type="text/babel">
+        const STORAGE_PREFIX_KEY = 'myapp_comment';
+        const getStorageKey = key => `${STORAGE_PREFIX_KEY}:${key}`;
+        const isAppStorageKey = key => key.startsWith(`${STORAGE_PREFIX_KEY}:`);
+        const getLogicalStorageKey = key => key.slice(`${STORAGE_PREFIX_KEY}:`.length);
+        const getAppStorageKeys = storage => Object.keys(storage).filter(isAppStorageKey);
+        const clearAppStorage = storage => getAppStorageKeys(storage).forEach(key => storage.removeItem(key));
+        const restoreLocalStorageBackup = (backup, storage) => Object.entries(backup).forEach(([key, value]) => (
+            storage.setItem(getStorageKey(key), value)
+        ));
+
         const DEFAULT_PRESET_TRAITS = {
             positive: ["好學不倦", "勤學專注", "課業認真", "富有愛心", "誠實坦白", "語言能力佳", "具有領導力", "抗壓性高", "積極樂觀", "善於溝通", "言行端正", "合群助人", "服務熱心", "做事勤快", "藝術表現佳", "數理表現佳", "語文表現佳", "課業總體優秀", "循規蹈矩", "富正義感", "忠實文靜", "性情溫和", "志向高超", "意志堅強", "沈靜忠厚", "尊敬師友"],
             neutral: ["嚴謹務實", "反應迅速", "自我要求高", "平易近人", "律己嚴謹", "富領悟力", "富想像力", "創造力強", "字體有進步", "人緣好", "洞察力敏銳", "能獨立思考", "理智冷靜", "穩定安靜", "精力旺盛", "性情率真", "隨遇而安"],
@@ -139,7 +149,8 @@
 
         const createLocalStorageBackup = storage => {
             const backup = Object.fromEntries(
-                Object.keys(storage).map(key => [key, storage.getItem(key)])
+                getAppStorageKeys(storage)
+                    .map(key => [getLogicalStorageKey(key), storage.getItem(key)])
             );
             if (backup['teacher-settings']) {
                 backup['teacher-settings'] = removeApiKeyFromSettings(backup['teacher-settings']);
@@ -160,7 +171,7 @@
 
         const preserveCurrentApiKey = (backup, storage) => {
             const importedSettings = JSON.parse(backup['teacher-settings'] || 'null');
-            const currentSettings = JSON.parse(storage.getItem('teacher-settings') || 'null');
+            const currentSettings = JSON.parse(storage.getItem(getStorageKey('teacher-settings')) || 'null');
             if (!importedSettings || Array.isArray(importedSettings) || typeof importedSettings !== 'object') return backup;
 
             if (typeof currentSettings?.apiKey === 'string') {
@@ -205,7 +216,7 @@
             const [storedValue, setStoredValue] = useState(() => {
                 if (typeof window === "undefined") return initialValue;
                 try {
-                    const item = window.localStorage.getItem(key);
+                    const item = window.localStorage.getItem(getStorageKey(key));
                     return item ? JSON.parse(item) : initialValue;
                 } catch (error) {
                     console.error(error);
@@ -220,7 +231,7 @@
                             ? value(previousValue)
                             : value;
                         if (typeof window !== "undefined") {
-                            window.localStorage.setItem(key, JSON.stringify(valueToStore));
+                            window.localStorage.setItem(getStorageKey(key), JSON.stringify(valueToStore));
                         }
                         return valueToStore;
                     });
@@ -1152,8 +1163,8 @@
                         window.localStorage
                     );
                     if (!window.confirm('匯入備份會覆蓋目前所有資料，確定要繼續嗎？')) return;
-                    window.localStorage.clear();
-                    Object.entries(backup).forEach(([key, value]) => window.localStorage.setItem(key, value));
+                    clearAppStorage(window.localStorage);
+                    restoreLocalStorageBackup(backup, window.localStorage);
                     window.location.reload();
                 } catch (error) {
                     console.error('Backup Import Error:', error);

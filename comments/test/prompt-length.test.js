@@ -24,6 +24,9 @@ const createStudentStart = html.indexOf('const createStudent =');
 const createStudentEnd = html.indexOf('};', createStudentStart) + 2;
 const createStudentSource = html.slice(createStudentStart, createStudentEnd);
 
+const storageHelpersStart = html.indexOf('const STORAGE_PREFIX_KEY =');
+const storageHelpersEnd = html.indexOf('const DEFAULT_PRESET_TRAITS =', storageHelpersStart);
+const storageHelpersSource = html.slice(storageHelpersStart, storageHelpersEnd);
 const backupHelpersStart = html.indexOf('const removeApiKeyFromSettings =');
 const backupHelpersEnd = html.indexOf('const { useState', backupHelpersStart);
 const backupHelpersSource = html.slice(backupHelpersStart, backupHelpersEnd);
@@ -39,6 +42,7 @@ const studentContext = {
     crypto: { randomUUID: () => 'test-id' }
 };
 vm.runInNewContext(`${createStudentSource}; this.createStudent = createStudent;`, studentContext);
+vm.runInNewContext(`${storageHelpersSource}; this.getStorageKey = getStorageKey; this.getLogicalStorageKey = getLogicalStorageKey; this.isAppStorageKey = isAppStorageKey; this.clearAppStorage = clearAppStorage; this.restoreLocalStorageBackup = restoreLocalStorageBackup;`, context);
 vm.runInNewContext(`${backupHelpersSource}; this.createLocalStorageBackup = createLocalStorageBackup; this.parseLocalStorageBackup = parseLocalStorageBackup; this.preserveCurrentApiKey = preserveCurrentApiKey;`, context);
 
 const student = {
@@ -163,9 +167,10 @@ test('header places API key and model controls beside the title on wide screens'
 
 test('localStorage backup preserves every stored key and value', () => {
     const storage = {
-        firstKey: 'first value',
-        secondKey: '{"enabled":true}',
-        'teacher-settings': JSON.stringify({ className: '1年1班', apiKey: 'secret' })
+        'myapp_comment:firstKey': 'first value',
+        'myapp_comment:secondKey': '{"enabled":true}',
+        'myapp_comment:teacher-settings': JSON.stringify({ className: '1年1班', apiKey: 'secret' }),
+        'other-app:settings': 'must remain private'
     };
     Object.defineProperty(storage, 'getItem', {
         value(key) {
@@ -196,10 +201,43 @@ test('localStorage backup parser accepts string values only', () => {
     );
 });
 
+test('storage keys are namespaced and backup ignores other apps', () => {
+    assert.equal(context.getStorageKey('teacher-settings'), 'myapp_comment:teacher-settings');
+    assert.equal(context.getLogicalStorageKey('myapp_comment:teacher-settings'), 'teacher-settings');
+    assert.equal(context.isAppStorageKey('other-app:settings'), false);
+});
+
+test('backup restore clears and writes only this app namespace', () => {
+    const storage = {
+        'myapp_comment:old': 'old value',
+        'other-app:keep': 'keep value',
+        removeItem(key) {
+            delete this[key];
+        },
+        setItem(key, value) {
+            this[key] = value;
+        }
+    };
+    Object.defineProperty(storage, 'getItem', {
+        value(key) {
+            return this[key] ?? null;
+        },
+        enumerable: false
+    });
+
+    context.clearAppStorage(storage);
+    context.restoreLocalStorageBackup({ 'teacher-settings': '{}', students: '[]' }, storage);
+
+    assert.equal(storage['myapp_comment:old'], undefined);
+    assert.equal(storage['other-app:keep'], 'keep value');
+    assert.equal(storage['myapp_comment:teacher-settings'], '{}');
+    assert.equal(storage['myapp_comment:students'], '[]');
+});
+
 test('backup import preserves the current API key', () => {
     const storage = {
         getItem(key) {
-            return key === 'teacher-settings'
+            return key === 'myapp_comment:teacher-settings'
                 ? JSON.stringify({ className: '2年3班', apiKey: 'current-secret' })
                 : null;
         }
