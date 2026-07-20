@@ -16,7 +16,7 @@ const canUseCommentActionsStart = html.indexOf('const canUseCommentActions =');
 const canUseCommentActionsEnd = html.indexOf(';', canUseCommentActionsStart) + 1;
 const canUseCommentActionsSource = html.slice(canUseCommentActionsStart, canUseCommentActionsEnd);
 
-const backupHelpersStart = html.indexOf('const createLocalStorageBackup =');
+const backupHelpersStart = html.indexOf('const removeApiKeyFromSettings =');
 const backupHelpersEnd = html.indexOf('const { useState', backupHelpersStart);
 const backupHelpersSource = html.slice(backupHelpersStart, backupHelpersEnd);
 
@@ -26,7 +26,7 @@ const context = {
 vm.runInNewContext(`${buildCommentPromptSource}; this.buildCommentPrompt = buildCommentPrompt;`, context);
 vm.runInNewContext(`${parseRosterNamesSource}; this.parseRosterNames = parseRosterNames;`, context);
 vm.runInNewContext(`${canUseCommentActionsSource}; this.canUseCommentActions = canUseCommentActions;`, context);
-vm.runInNewContext(`${backupHelpersSource}; this.createLocalStorageBackup = createLocalStorageBackup; this.parseLocalStorageBackup = parseLocalStorageBackup;`, context);
+vm.runInNewContext(`${backupHelpersSource}; this.createLocalStorageBackup = createLocalStorageBackup; this.parseLocalStorageBackup = parseLocalStorageBackup; this.preserveCurrentApiKey = preserveCurrentApiKey;`, context);
 
 const student = {
     name: '小明',
@@ -122,7 +122,8 @@ test('bottom bar exposes backup export and import controls', () => {
 test('localStorage backup preserves every stored key and value', () => {
     const storage = {
         firstKey: 'first value',
-        secondKey: '{"enabled":true}'
+        secondKey: '{"enabled":true}',
+        'teacher-settings': JSON.stringify({ className: '1年1班', apiKey: 'secret' })
     };
     Object.defineProperty(storage, 'getItem', {
         value(key) {
@@ -133,7 +134,8 @@ test('localStorage backup preserves every stored key and value', () => {
 
     assert.equal(JSON.stringify(context.createLocalStorageBackup(storage)), JSON.stringify({
         firstKey: 'first value',
-        secondKey: '{"enabled":true}'
+        secondKey: '{"enabled":true}',
+        'teacher-settings': JSON.stringify({ className: '1年1班' })
     }));
 });
 
@@ -150,4 +152,21 @@ test('localStorage backup parser accepts string values only', () => {
         () => context.parseLocalStorageBackup('[]'),
         /備份檔格式不正確/
     );
+});
+
+test('backup import preserves the current API key', () => {
+    const storage = {
+        getItem(key) {
+            return key === 'teacher-settings'
+                ? JSON.stringify({ className: '2年3班', apiKey: 'current-secret' })
+                : null;
+        }
+    };
+    const backup = {
+        'teacher-settings': JSON.stringify({ className: '1年1班', apiKey: 'old-secret' })
+    };
+
+    const imported = context.preserveCurrentApiKey(backup, storage);
+    assert.equal(JSON.parse(imported['teacher-settings']).apiKey, 'current-secret');
+    assert.equal(JSON.parse(imported['teacher-settings']).className, '1年1班');
 });

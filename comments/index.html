@@ -78,9 +78,26 @@
             `${className}${label}_${getExportTimestamp(new Date())}.${extension}`
         );
 
-        const createLocalStorageBackup = storage => Object.fromEntries(
-            Object.keys(storage).map(key => [key, storage.getItem(key)])
-        );
+        const removeApiKeyFromSettings = settingsValue => {
+            try {
+                const settings = JSON.parse(settingsValue);
+                if (!settings || Array.isArray(settings) || typeof settings !== 'object') return settingsValue;
+                const { apiKey, ...safeSettings } = settings;
+                return JSON.stringify(safeSettings);
+            } catch (error) {
+                return settingsValue;
+            }
+        };
+
+        const createLocalStorageBackup = storage => {
+            const backup = Object.fromEntries(
+                Object.keys(storage).map(key => [key, storage.getItem(key)])
+            );
+            if (backup['teacher-settings']) {
+                backup['teacher-settings'] = removeApiKeyFromSettings(backup['teacher-settings']);
+            }
+            return backup;
+        };
 
         const parseLocalStorageBackup = text => {
             const backup = JSON.parse(text);
@@ -91,6 +108,19 @@
                 throw new Error('備份檔內容不正確。');
             }
             return backup;
+        };
+
+        const preserveCurrentApiKey = (backup, storage) => {
+            const importedSettings = JSON.parse(backup['teacher-settings'] || 'null');
+            const currentSettings = JSON.parse(storage.getItem('teacher-settings') || 'null');
+            if (!importedSettings || Array.isArray(importedSettings) || typeof importedSettings !== 'object') return backup;
+
+            if (typeof currentSettings?.apiKey === 'string') {
+                importedSettings.apiKey = currentSettings.apiKey;
+            } else {
+                delete importedSettings.apiKey;
+            }
+            return { ...backup, 'teacher-settings': JSON.stringify(importedSettings) };
         };
 
         const { useState, useEffect, useCallback, useRef } = React;
@@ -1084,7 +1114,10 @@
                 if (!file) return;
 
                 try {
-                    const backup = parseLocalStorageBackup(await file.text());
+                    const backup = preserveCurrentApiKey(
+                        parseLocalStorageBackup(await file.text()),
+                        window.localStorage
+                    );
                     if (!window.confirm('匯入備份會覆蓋目前所有資料，確定要繼續嗎？')) return;
                     window.localStorage.clear();
                     Object.entries(backup).forEach(([key, value]) => window.localStorage.setItem(key, value));
