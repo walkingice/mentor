@@ -919,17 +919,12 @@
                     {/* Header & Settings */}
                     <header className="bg-white shadow-sm sticky top-0 z-40 border-b border-gray-200">
                         <div className="max-w-5xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
-                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div className="flex flex-col gap-4">
+                                <h1 className="text-2xl font-bold text-gray-900 tracking-tight">期末評語小幫手</h1>
+
                                 <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                                    <div className="flex items-center gap-3">
-                                        <div className="bg-blue-600 p-2 rounded-xl shadow-inner">
-                                            <Icon name="sparkles" className="text-white" size={24} />
-                                        </div>
-                                        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">期末評語小幫手</h1>
-                                    </div>
-                                    
                                     {/* Responsive Secure Gemini API Key Setting with Direct Sign up Portal Link */}
-                                    <div className="flex items-center gap-2 bg-blue-50/75 hover:bg-blue-50 border border-blue-100 rounded-xl px-3 py-2 shrink-0 transition-colors">
+                                    <div className="flex items-center gap-2 bg-blue-50/75 hover:bg-blue-50 border border-blue-100 rounded-xl px-3 py-2 transition-colors sm:flex-1">
                                         <Icon name="key" size={16} className="text-blue-500 shrink-0" />
                                         <input
                                             type={showApiKey ? "text" : "password"}
@@ -974,13 +969,14 @@
                                         </select>
                                         {isLoadingModels && <Icon name="loader-2" size={14} className="text-gray-400" />}
                                     </div>
-                                    {modelError && (
-                                        <p className="w-full text-xs text-amber-700 px-2">
-                                            無法更新 Model 清單，暫使用預設清單：{modelError}
-                                        </p>
-                                    )}
                                 </div>
-                                
+
+                                {modelError && (
+                                    <p className="text-xs text-amber-700 px-2 -mt-2">
+                                        無法更新 Model 清單，暫使用預設清單：{modelError}
+                                    </p>
+                                )}
+
                                 <div className="flex flex-wrap items-center gap-3 bg-gray-50 p-2 rounded-xl border border-gray-200 shadow-sm">
                                     <div className="flex items-center gap-2 px-2">
                                         <Icon name="users" size={16} className="text-gray-500" />
