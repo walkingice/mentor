@@ -43,6 +43,7 @@
         const DEFAULT_SETTINGS = {
             className: "1年1班",
             tone: "溫暖",
+            commentLength: 30,
             includeName: true,
             includeClosing: true,
             apiKey: "",
@@ -323,6 +324,11 @@
                 "理性": "客觀、理性、具體點出事實",
                 "嚴厲": "較為嚴肅，指出缺點並給與明確的改進方向，但不過度打擊"
             };
+            const configuredCommentLength = Number(settings.commentLength);
+            const commentLength = configuredCommentLength > 0
+                ? configuredCommentLength
+                : DEFAULT_SETTINGS.commentLength;
+            const lengthDescription = `約 ${commentLength} 字`;
 
             let prompt = `你是一位台灣國中小學教師，正在撰寫學生的期末評語。
 請根據以下資訊撰寫評語：
@@ -339,9 +345,9 @@
 `;
 
             if (student.comment && student.comment.trim() !== '') {
-                prompt += `\n\n這是我目前寫好的草稿：\n「${student.comment}」\n\n請以這段草稿為基底，結合上述的「特質標籤」與「設定」重新潤飾、擴寫，讓句子更通順完整，字數約 30~50字。`;
+                prompt += `\n\n這是我目前寫好的草稿：\n「${student.comment}」\n\n請以這段草稿為基底，結合上述的「特質標籤」與「設定」重新潤飾、擴寫，讓句子更通順完整，字數${lengthDescription}。`;
             } else {
-                prompt += `\n\n請直接根據上述設定產生一段約 30~50 字的完整期末評語。`;
+                prompt += `\n\n請直接根據上述設定產生一段${lengthDescription}的完整期末評語。`;
             }
 
             return prompt;
@@ -1011,6 +1017,23 @@
                                             <option value="理性">理性客觀</option>
                                             <option value="嚴厲">嚴厲鞭策</option>
                                         </select>
+                                    </div>
+                                    <div className="h-6 w-px bg-gray-300"></div>
+                                    <div className="flex items-center gap-2 px-2">
+                                        <label htmlFor="comment-length" className="text-sm font-medium text-gray-600 whitespace-nowrap">
+                                            字數
+                                        </label>
+                                        <input
+                                            id="comment-length"
+                                            type="number"
+                                            min="1"
+                                            step="1"
+                                            value={settings.commentLength ?? DEFAULT_SETTINGS.commentLength}
+                                            onChange={e => setSettings({...settings, commentLength: e.target.value})}
+                                            className="w-16 bg-transparent font-medium text-gray-700 outline-none"
+                                            aria-label="評語字數"
+                                        />
+                                        <span className="text-sm font-medium text-gray-600">字</span>
                                     </div>
                                     <div className="h-6 w-px bg-gray-300"></div>
                                     <label className="flex items-center gap-2 px-2 cursor-pointer group">
