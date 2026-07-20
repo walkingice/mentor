@@ -119,6 +119,12 @@ test('bottom bar exposes backup export and import controls', () => {
     assert.match(html, /getExportFilename\(settings\.className, '備份', 'json'\)/);
 });
 
+test('model discovery only runs from the manual refresh control', () => {
+    assert.doesNotMatch(html, /\}, \[settings\.apiKey\]\);/);
+    assert.match(html, /onClick=\{refreshAvailableModels\}/);
+    assert.match(html, /aria-label="重新整理 Model 清單"/);
+});
+
 test('localStorage backup preserves every stored key and value', () => {
     const storage = {
         firstKey: 'first value',

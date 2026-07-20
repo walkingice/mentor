@@ -930,41 +930,37 @@
             const [isLoadingModels, setIsLoadingModels] = useState(false);
             const backupFileInputRef = useRef(null);
 
-            useEffect(() => {
+            const refreshAvailableModels = async () => {
                 const apiKey = settings.apiKey?.trim();
                 if (!apiKey) {
                     setAvailableModels(DEFAULT_GEMINI_MODELS);
                     setModelError(null);
-                    return undefined;
+                    return;
                 }
 
-                const timeoutId = setTimeout(async () => {
-                    setIsLoadingModels(true);
-                    setModelError(null);
-                    try {
-                        const models = await fetchAvailableGeminiModels(apiKey);
-                        if (models.length === 0) {
-                            throw new Error("此 API 金鑰沒有可用的 generateContent model。");
-                        }
-
-                        setAvailableModels(models);
-                        if (!models.includes(settings.model)) {
-                            setSettings({ ...settings, model: models[0] });
-                        }
-                    } catch (error) {
-                        console.error("Model Discovery Error:", error);
-                        setAvailableModels(DEFAULT_GEMINI_MODELS);
-                        if (!DEFAULT_GEMINI_MODELS.includes(settings.model)) {
-                            setSettings({ ...settings, model: DEFAULT_GEMINI_MODELS[0] });
-                        }
-                        setModelError(error.message);
-                    } finally {
-                        setIsLoadingModels(false);
+                setIsLoadingModels(true);
+                setModelError(null);
+                try {
+                    const models = await fetchAvailableGeminiModels(apiKey);
+                    if (models.length === 0) {
+                        throw new Error("此 API 金鑰沒有可用的 generateContent model。");
                     }
-                }, 500);
 
-                return () => clearTimeout(timeoutId);
-            }, [settings.apiKey]);
+                    setAvailableModels(models);
+                    if (!models.includes(settings.model)) {
+                        setSettings({ ...settings, model: models[0] });
+                    }
+                } catch (error) {
+                    console.error("Model Discovery Error:", error);
+                    setAvailableModels(DEFAULT_GEMINI_MODELS);
+                    if (!DEFAULT_GEMINI_MODELS.includes(settings.model)) {
+                        setSettings({ ...settings, model: DEFAULT_GEMINI_MODELS[0] });
+                    }
+                    setModelError(error.message);
+                } finally {
+                    setIsLoadingModels(false);
+                }
+            };
 
             const updateStudent = (id, field, value) => {
                 setStudents(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
@@ -1204,7 +1200,16 @@
                                                 <option key={model} value={model}>{model}</option>
                                             ))}
                                         </select>
-                                        {isLoadingModels && <Icon name="loader-2" size={14} className="text-gray-400" />}
+                                        <button
+                                            type="button"
+                                            onClick={refreshAvailableModels}
+                                            disabled={!settings.apiKey?.trim() || isLoadingModels}
+                                            className="inline-flex items-center justify-center rounded-md p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-40"
+                                            title="重新整理 Model 清單"
+                                            aria-label="重新整理 Model 清單"
+                                        >
+                                            <Icon name={isLoadingModels ? "loader-2" : "rotate-ccw"} size={14} />
+                                        </button>
                                     </div>
                                 </div>
 
