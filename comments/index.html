@@ -13,6 +13,49 @@
             font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             background-color: #f3f4f6;
         }
+        @keyframes student-row-enter {
+            from {
+                opacity: 0;
+                transform: translateY(-10px) scale(0.98);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        @keyframes student-row-remove {
+            from {
+                opacity: 1;
+                transform: translateX(0) scale(1);
+                max-height: 800px;
+                margin-bottom: 0.5rem;
+            }
+            to {
+                opacity: 0;
+                transform: translateX(24px) scale(0.98);
+                max-height: 0;
+                margin-bottom: 0;
+                overflow: hidden;
+            }
+        }
+
+        .student-row-enter {
+            animation: student-row-enter 500ms ease-out both;
+        }
+
+        .student-row-removing {
+            animation: student-row-remove 500ms ease-in both;
+            pointer-events: none;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .student-row-enter,
+            .student-row-removing {
+                animation-duration: 500ms;
+            }
+        }
+
         /* Custom scrollbar for textareas */
         textarea::-webkit-scrollbar {
             width: 8px;
@@ -69,6 +112,9 @@
 
         const parseRosterNames = (text) => text.trim().split(/[\s,，]+/).filter(Boolean);
         const canUseCommentActions = comment => Boolean(comment?.trim());
+        const getStudentRowAnimationClass = isRemoving => (
+            isRemoving ? 'student-row-removing' : 'student-row-enter'
+        );
 
         const getExportTimestamp = now => {
             const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
@@ -930,6 +976,7 @@
             const [availableModels, setAvailableModels] = useState(DEFAULT_GEMINI_MODELS);
             const [modelError, setModelError] = useState(null);
             const [isLoadingModels, setIsLoadingModels] = useState(false);
+            const [removingId, setRemovingId] = useState(null);
             const backupFileInputRef = useRef(null);
 
             const refreshAvailableModels = async () => {
@@ -1031,8 +1078,12 @@
             };
 
             const removeStudent = (id) => {
-                setStudents(prev => prev.filter(s => s.id !== id));
+                setRemovingId(id);
                 setDeletingId(null);
+                setTimeout(() => {
+                    setStudents(prev => prev.filter(s => s.id !== id));
+                    setRemovingId(currentId => currentId === id ? null : currentId);
+                }, 500);
             };
 
             const clearStudentComment = (id) => {
@@ -1297,7 +1348,7 @@
                         {/* Student Cards Loop */}
                         {students.map((student, index) => (
                             <React.Fragment key={student.id}>
-                                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-visible hover:shadow-md transition-shadow group relative">
+                                <div className={`bg-white rounded-2xl shadow-sm border border-gray-200 overflow-visible hover:shadow-md transition-shadow group relative ${getStudentRowAnimationClass(removingId === student.id)}`}>
                                     
                                     {/* Action Buttons */}
                                     <div className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">

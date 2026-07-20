@@ -16,6 +16,10 @@ const canUseCommentActionsStart = html.indexOf('const canUseCommentActions =');
 const canUseCommentActionsEnd = html.indexOf(';', canUseCommentActionsStart) + 1;
 const canUseCommentActionsSource = html.slice(canUseCommentActionsStart, canUseCommentActionsEnd);
 
+const rowAnimationStart = html.indexOf('const getStudentRowAnimationClass =');
+const rowAnimationEnd = html.indexOf(';', rowAnimationStart) + 1;
+const rowAnimationSource = html.slice(rowAnimationStart, rowAnimationEnd);
+
 const createStudentStart = html.indexOf('const createStudent =');
 const createStudentEnd = html.indexOf('};', createStudentStart) + 2;
 const createStudentSource = html.slice(createStudentStart, createStudentEnd);
@@ -30,6 +34,7 @@ const context = {
 vm.runInNewContext(`${buildCommentPromptSource}; this.buildCommentPrompt = buildCommentPrompt;`, context);
 vm.runInNewContext(`${parseRosterNamesSource}; this.parseRosterNames = parseRosterNames;`, context);
 vm.runInNewContext(`${canUseCommentActionsSource}; this.canUseCommentActions = canUseCommentActions;`, context);
+vm.runInNewContext(`${rowAnimationSource}; this.getStudentRowAnimationClass = getStudentRowAnimationClass;`, context);
 const studentContext = {
     crypto: { randomUUID: () => 'test-id' }
 };
@@ -125,6 +130,15 @@ test('student rows expose centered delete and comment action controls', () => {
     assert.match(html, /absolute left-0 top-1\/2 -translate-x-1\/2 -translate-y-1\/2/);
     assert.match(html, /aria-label="清除評語"/);
     assert.match(html, /aria-label="複製評語"/);
+});
+
+test('student rows expose enter and removal animation states', () => {
+    assert.equal(context.getStudentRowAnimationClass(false), 'student-row-enter');
+    assert.equal(context.getStudentRowAnimationClass(true), 'student-row-removing');
+    assert.match(html, /@keyframes student-row-enter/);
+    assert.match(html, /@keyframes student-row-remove/);
+    assert.match(html, /setTimeout\(\(\) => \{[\s\S]*setStudents\(prev => prev\.filter\(s => s\.id !== id\)\)/);
+    assert.match(html, /getStudentRowAnimationClass\(removingId === student\.id\)/);
 });
 
 test('bottom bar exposes backup export and import controls', () => {
