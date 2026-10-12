@@ -21,7 +21,7 @@
     #output[hidden] { display: none; }
     #word-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 20px; margin: 12px 0 24px; padding: 0; list-style: none; }
     #grid { border-collapse: collapse; margin: auto; table-layout: fixed; }
-    #grid td { width: var(--cell-size); height: var(--cell-size); min-width: var(--cell-size); padding: 0; border: 1px solid #333; text-align: center; vertical-align: middle; font-size: calc(var(--cell-size) * .58); line-height: 1; }
+    #grid td { width: var(--cell-size); height: var(--cell-size); min-width: var(--cell-size); padding: 0; border: 2px solid #333; text-align: center; vertical-align: middle; font-size: calc(var(--cell-size) * .58); line-height: 1; }
     @media screen and (max-width: 700px) { #output { overflow-x: auto; } }
     @page { size: A4 portrait; margin: 10mm; }
     @media print {
@@ -218,7 +218,7 @@
         const rows = table.rows.length;
         const columns = table.rows[0].cells.length;
         const listHeight = document.getElementById('word-list').getBoundingClientRect().height / 3.78;
-        const cell = Math.max(3, Math.min(145 / columns, (250 - listHeight) / rows));
+        const cell = Math.max(3, Math.min(140 / columns, (250 - listHeight) / rows));
         table.style.setProperty('--cell-size', `${cell}mm`);
         const contentHeight = output.getBoundingClientRect().height / 3.78;
         output.style.zoom = String(Math.min(1, 270 / contentHeight));
