@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>尋找文字題目工具</title>
+  <style>
+    :root { font-family: system-ui, sans-serif; color: #263238; background: #f5f7f4; }
+    body { margin: 0; }
+    main { max-width: 920px; margin: auto; padding: 24px; }
+    h1 { margin-top: 0; }
+    form { display: grid; gap: 16px; background: white; padding: 24px; border-radius: 12px; }
+    label { display: grid; gap: 6px; font-weight: 600; }
+    .dimensions { display: flex; gap: 16px; }
+    .dimensions input { width: 80px; }
+    input, textarea, button { font: inherit; padding: 8px; box-sizing: border-box; }
+    textarea { width: 100%; min-height: 100px; resize: vertical; }
+    button { justify-self: start; border: 0; border-radius: 6px; background: #176b56; color: white; padding: 10px 24px; cursor: pointer; }
+    .error { color: #a32121; font-weight: 600; min-height: 1.5em; }
+    #output { text-align: center; background: white; margin-top: 24px; padding: 24px; border-radius: 12px; }
+    #output[hidden] { display: none; }
+    #word-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 20px; margin: 12px 0 24px; padding: 0; list-style: none; }
+    #grid { border-collapse: collapse; margin: auto; table-layout: fixed; }
+    #grid td { width: var(--cell-size); height: var(--cell-size); min-width: var(--cell-size); padding: 0; border: 1px solid #333; text-align: center; vertical-align: middle; font-size: calc(var(--cell-size) * .58); line-height: 1; }
+    @media screen and (max-width: 700px) { #output { overflow-x: auto; } }
+    @page { size: A4 portrait; margin: 10mm; }
+    @media print {
+      :root { background: white; }
+      body:has(#output[hidden]) { display: none; }
+      main { max-width: none; margin: 0; padding: 0; }
+      h1, form, .error { display: none !important; }
+      #output { display: block; margin: 0; padding: 0; break-inside: avoid; }
+      #word-list { margin: 3mm 0 5mm; gap: 2mm 5mm; font-size: 10pt; }
+      #grid td { border-color: black; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>尋找文字題目工具</h1>
+    <form id="generator-form" novalidate>
+      <div class="dimensions">
+        <label>列數 <input id="rows" type="number" min="7" max="20" step="1" value="7" required></label>
+        <label>欄數 <input id="columns" type="number" min="7" max="20" step="1" value="7" required></label>
+      </div>
+      <label>題目（每行一組）<textarea id="puzzles" required></textarea></label>
+      <label>填充文字<textarea id="filler"></textarea></label>
+      <button type="submit">產生</button>
+    </form>
+    <p id="error" class="error" role="alert"></p>
+    <section id="output" hidden aria-label="尋找文字題目">
+      <h2>尋找文字</h2>
+      <ul id="word-list"></ul>
+      <table id="grid" aria-label="文字方格"></table>
+    </section>
+  </main>
+  <script>
+    const STORAGE_PREFIX_KEY = 'mentor_words_hunt';
+    const SEARCH_LIMIT = 50000;
+    const segmenter = new Intl.Segmenter('zh', { granularity: 'grapheme' });
+    const directions = [[0, 1], [0, -1], [1, 0], [-1, 0]];
+
+    function characters(value) {
+      return Array.from(segmenter.segment(value.normalize('NFC')), part => part.segment);
+    }
+
+    function normalizeText(value) {
+      const withoutEmoji = characters(value).filter(char =>
+        !/[\p{Extended_Pictographic}\p{Regional_Indicator}\u20e3]/u.test(char)).join('');
+      const clean = withoutEmoji.replace(/[\p{P}\p{S}\s]/gu, '');
+      return clean.replace(/[A-Za-z0-9]/g, char =>
+        String.fromCodePoint(char.codePointAt(0) + 0xfee0));
+    }
+
+    function normalizePuzzles(value) {
+      return [...new Set(value.split(/\r\n|\r|\n/).map(normalizeText).filter(Boolean))];
+    }
+
+    function fillerCharacters(value, puzzles) {
+      const used = new Set(puzzles.flatMap(characters));
+      const available = characters(normalizeText(value)).filter(char => !used.has(char));
+      return available.length ? available : ['。'];
+    }
+
+    function validateDimensions(rows, columns) {
+      if (![rows, columns].every(size => Number.isInteger(size) && size >= 7 && size <= 20)) {
+        throw new Error('列數與欄數必須是 7 到 20 的整數。');
+      }
+    }
+
+    function candidates(word, rows, columns) {
+      const result = [];
+      for (const [dr, dc] of directions) {
+        for (let row = 0; row < rows; row++) {
+          for (let column = 0; column < columns; column++) {
+            const endRow = row + dr * (word.length - 1);
+            const endColumn = column + dc * (word.length - 1);
+            if (endRow >= 0 && endRow < rows && endColumn >= 0 && endColumn < columns) {
+              result.push({ row, column, dr, dc });
+            }
+          }
+        }
+      }
+      return result;
+    }
+
+    function canPlace(grid, word, spot) {
+      return word.every((char, index) => {
+        const cell = grid[spot.row + spot.dr * index][spot.column + spot.dc * index];
+        return cell === null || cell === char;
+      });
+    }
+
+    function place(grid, word, spot) {
+      const changed = [];
+      word.forEach((char, index) => {
+        const row = spot.row + spot.dr * index;
+        const column = spot.column + spot.dc * index;
+        if (grid[row][column] === null) {
+          grid[row][column] = char;
+          changed.push([row, column]);
+        }
+      });
+      return changed;
+    }
+
+    function shuffle(items, random) {
+      for (let index = items.length - 1; index > 0; index--) {
+        const other = Math.floor(random() * (index + 1));
+        [items[index], items[other]] = [items[other], items[index]];
+      }
+      return items;
+    }
+
+    function generateGrid(rows, columns, puzzles, filler, random = Math.random, limit = SEARCH_LIMIT) {
+      validateDimensions(rows, columns);
+      if (!puzzles.length) throw new Error('請輸入至少一組題目。');
+      const words = puzzles.map(characters);
+      if (words.some(word => !word.length || word.length > Math.max(rows, columns))) {
+        throw new Error('題目長度超過列數與欄數，無法排放。');
+      }
+      const grid = Array.from({ length: rows }, () => Array(columns).fill(null));
+      const options = words.map(word => shuffle(candidates(word, rows, columns), random));
+      let attempts = 0;
+
+      function search(index) {
+        if (index === words.length) return true;
+        for (const spot of options[index]) {
+          if (++attempts > limit) return false;
+          if (!canPlace(grid, words[index], spot)) continue;
+          const changed = place(grid, words[index], spot);
+          if (search(index + 1)) return true;
+          changed.forEach(([row, column]) => { grid[row][column] = null; });
+        }
+        return false;
+      }
+
+      if (!search(0)) throw new Error('無法在嘗試上限內排放所有題目，請調整題目或方格大小。');
+      const available = fillerCharacters(filler, puzzles);
+      return grid.map(row => row.map(char => char ?? available[Math.floor(random() * available.length)]));
+    }
+
+    function storageKey(name) { return `${STORAGE_PREFIX_KEY}:${name}`; }
+
+    function render(grid, puzzles) {
+      const output = document.getElementById('output');
+      const list = document.getElementById('word-list');
+      const table = document.getElementById('grid');
+      list.replaceChildren(...puzzles.map(word => {
+        const item = document.createElement('li');
+        item.textContent = word;
+        return item;
+      }));
+      table.replaceChildren(...grid.map(row => {
+        const tr = document.createElement('tr');
+        tr.replaceChildren(...row.map(char => {
+          const td = document.createElement('td');
+          td.textContent = char;
+          return td;
+        }));
+        return tr;
+      }));
+      const cell = Math.min(16, 180 / grid[0].length, 185 / grid.length);
+      table.style.setProperty('--cell-size', `${cell}mm`);
+      output.hidden = false;
+    }
+
+    if (typeof document !== 'undefined') {
+      const fields = ['rows', 'columns', 'puzzles', 'filler'];
+      for (const name of fields) {
+        const field = document.getElementById(name);
+        const saved = localStorage.getItem(storageKey(name));
+        if (saved !== null) field.value = saved;
+        field.addEventListener('input', () => localStorage.setItem(storageKey(name), field.value));
+      }
+      document.getElementById('generator-form').addEventListener('submit', event => {
+        event.preventDefault();
+        const output = document.getElementById('output');
+        const error = document.getElementById('error');
+        output.hidden = true;
+        error.textContent = '';
+        try {
+          const rows = Number(document.getElementById('rows').value);
+          const columns = Number(document.getElementById('columns').value);
+          const puzzles = normalizePuzzles(document.getElementById('puzzles').value);
+          const filler = document.getElementById('filler').value;
+          render(generateGrid(rows, columns, puzzles, filler), puzzles);
+        } catch (failure) {
+          error.textContent = failure.message;
+        }
+      });
+      let screenCellSize = '';
+      window.addEventListener('beforeprint', () => {
+        const output = document.getElementById('output');
+        if (output.hidden) return;
+        const table = document.getElementById('grid');
+        screenCellSize = table.style.getPropertyValue('--cell-size');
+        const rows = table.rows.length;
+        const columns = table.rows[0].cells.length;
+        const listHeight = document.getElementById('word-list').getBoundingClientRect().height / 3.78;
+        const cell = Math.max(3, Math.min(180 / columns, (250 - listHeight) / rows));
+        table.style.setProperty('--cell-size', `${cell}mm`);
+        const contentHeight = output.getBoundingClientRect().height / 3.78;
+        output.style.zoom = String(Math.min(1, 270 / contentHeight));
+      });
+      window.addEventListener('afterprint', () => {
+        document.getElementById('grid').style.setProperty('--cell-size', screenCellSize);
+        document.getElementById('output').style.zoom = '';
+      });
+    }
+  </script>
+</body>
+</html>
