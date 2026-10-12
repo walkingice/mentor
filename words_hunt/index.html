@@ -78,7 +78,7 @@
 
     function fillerCharacters(value, puzzles) {
       const used = new Set(puzzles.flatMap(characters));
-      const available = characters(normalizeText(value)).filter(char => !used.has(char));
+      const available = [...new Set(characters(normalizeText(value)))].filter(char => !used.has(char));
       return available.length ? available : ['。'];
     }
 
@@ -157,7 +157,12 @@
 
       if (!search(0)) throw new Error('無法在嘗試上限內排放所有題目，請調整題目或方格大小。');
       const available = fillerCharacters(filler, puzzles);
-      return grid.map(row => row.map(char => char ?? available[Math.floor(random() * available.length)]));
+      let remaining = [];
+      return grid.map(row => row.map(char => {
+        if (char !== null) return char;
+        if (!remaining.length) remaining = shuffle([...available], random);
+        return remaining.pop();
+      }));
     }
 
     function storageKey(name) { return `${STORAGE_PREFIX_KEY}:${name}`; }

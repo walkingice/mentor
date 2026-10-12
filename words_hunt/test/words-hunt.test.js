@@ -23,6 +23,9 @@ describe('normalization', () => {
     assertEqual(JSON.stringify(run("fillerCharacters('A中B', ['Ａ'])")), '["中","Ｂ"]');
     assertEqual(JSON.stringify(run("fillerCharacters('A!', ['Ａ'])")), '["。"]');
   });
+  it('deduplicates filler characters after normalization', () => {
+    assertEqual(JSON.stringify(run("fillerCharacters('AＡBB中中', ['Ｃ'])")), '["Ａ","Ｂ","中"]');
+  });
 });
 
 describe('placement', () => {
@@ -49,6 +52,12 @@ describe('placement', () => {
     const grid = run("generateGrid(7, 10, ['ＡＢ'], '中')");
     assertEqual(grid.length, 7);
     assert(grid.every(row => row.length === 10 && row.every(Boolean)));
+  });
+  it('uses unique filler characters as evenly as possible', () => {
+    const grid = run("generateGrid(7, 10, ['題'], '甲甲乙丙丙')");
+    const counts = ['甲', '乙', '丙'].map(char => grid.flat().filter(cell => cell === char).length);
+    assertEqual(counts.reduce((sum, count) => sum + count, 0), 69);
+    assert(Math.max(...counts) - Math.min(...counts) <= 1);
   });
 });
 
