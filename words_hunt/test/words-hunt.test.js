@@ -71,4 +71,26 @@ describe('placement', () => {
   });
 });
 
+describe('output', () => {
+  it('renders additional text with its original line breaks', () => {
+    const elements = Object.fromEntries(['output', 'word-list', 'grid', 'additional-text']
+      .map(id => [id, {
+        hidden: true,
+        style: { setProperty() {} },
+        replaceChildren() {}
+      }]));
+    context.document = {
+      getElementById: id => elements[id],
+      createElement: () => ({ replaceChildren() {}, textContent: '' })
+    };
+    try {
+      run("render([['Ａ']], ['Ａ'], '第一行\\n\\n  第三行')");
+      assertEqual(elements['additional-text'].textContent, '第一行\n\n  第三行');
+      assertEqual(elements.output.hidden, false);
+    } finally {
+      delete context.document;
+    }
+  });
+});
+
 if (getSummary().failures) process.exitCode = 1;

@@ -22,6 +22,8 @@
     #word-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 20px; margin: 12px 0 24px; padding: 0; list-style: none; }
     #grid { border-collapse: collapse; margin: auto; table-layout: fixed; }
     #grid td { width: var(--cell-size); height: var(--cell-size); min-width: var(--cell-size); padding: 0; border: 2px solid #333; text-align: center; vertical-align: middle; font-size: calc(var(--cell-size) * .58); line-height: 1; }
+    #additional-text { white-space: pre-wrap; overflow-wrap: anywhere; text-align: left; margin: 40px 0 0; font-size: 1.25rem; }
+    #additional-text:empty { display: none; }
     @media screen and (max-width: 700px) { #output { overflow-x: auto; } }
     @page { size: A4 portrait; margin: 10mm; }
     @media print {
@@ -32,6 +34,7 @@
       #output { display: block; width: 80%; margin: 0 auto; padding: 0; break-inside: avoid; }
       #word-list { margin: 3mm 0 5mm; gap: 2mm 5mm; font-size: 10pt; }
       #grid td { border-color: black; }
+      #additional-text { margin-top: 10mm; font-size: 12pt; }
     }
     ::placeholder {
       color: rgb(0, 0, 0, 0.2);
@@ -48,6 +51,7 @@
       </div>
       <label>題目（每行一組）<textarea id="puzzles" placeholder="あまい&#10;もの" required></textarea></label>
       <label>填充文字<textarea id="filler" placeholder="あいうえお&#10;かきくけこ&#10;さしすせそ"></textarea></label>
+      <label>補充訊息<textarea id="additional-text-input" placeholder="請輸入想要一併印出的文字"></textarea></label>
       <button type="submit">產生</button>
     </form>
     <p id="error" class="error" role="alert"></p>
@@ -55,6 +59,7 @@
       <h2>尋找文字</h2>
       <ul id="word-list"></ul>
       <table id="grid" aria-label="文字方格"></table>
+      <div id="additional-text"></div>
     </section>
   </main>
   <script>
@@ -173,7 +178,7 @@
 
     function storageKey(name) { return `${STORAGE_PREFIX_KEY}:${name}`; }
 
-    function render(grid, puzzles) {
+    function render(grid, puzzles, additionalText) {
       const output = document.getElementById('output');
       const list = document.getElementById('word-list');
       const table = document.getElementById('grid');
@@ -193,11 +198,12 @@
       }));
       const cell = Math.min(16, 180 / grid[0].length, 185 / grid.length);
       table.style.setProperty('--cell-size', `${cell}mm`);
+      document.getElementById('additional-text').textContent = additionalText;
       output.hidden = false;
     }
 
     if (typeof document !== 'undefined') {
-      const fields = ['rows', 'columns', 'puzzles', 'filler'];
+      const fields = ['rows', 'columns', 'puzzles', 'filler', 'additional-text-input'];
       for (const name of fields) {
         const field = document.getElementById(name);
         const saved = localStorage.getItem(storageKey(name));
@@ -215,7 +221,8 @@
           const columns = Number(document.getElementById('columns').value);
           const puzzles = normalizePuzzles(document.getElementById('puzzles').value);
           const filler = document.getElementById('filler').value;
-          render(generateGrid(rows, columns, puzzles, filler), puzzles);
+          const additionalText = document.getElementById('additional-text-input').value;
+          render(generateGrid(rows, columns, puzzles, filler), puzzles, additionalText);
         } catch (failure) {
           error.textContent = failure.message;
         }
