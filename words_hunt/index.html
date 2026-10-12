@@ -29,7 +29,7 @@
       body:has(#output[hidden]) { display: none; }
       main { max-width: none; margin: 0; padding: 0; }
       h1, form, .error { display: none !important; }
-      #output { display: block; margin: 0; padding: 0; break-inside: avoid; }
+      #output { display: block; width: 80%; margin: 0 auto; padding: 0; break-inside: avoid; }
       #word-list { margin: 3mm 0 5mm; gap: 2mm 5mm; font-size: 10pt; }
       #grid td { border-color: black; }
     }
@@ -218,7 +218,7 @@
         const rows = table.rows.length;
         const columns = table.rows[0].cells.length;
         const listHeight = document.getElementById('word-list').getBoundingClientRect().height / 3.78;
-        const cell = Math.max(3, Math.min(180 / columns, (250 - listHeight) / rows));
+        const cell = Math.max(3, Math.min(145 / columns, (250 - listHeight) / rows));
         table.style.setProperty('--cell-size', `${cell}mm`);
         const contentHeight = output.getBoundingClientRect().height / 3.78;
         output.style.zoom = String(Math.min(1, 270 / contentHeight));
