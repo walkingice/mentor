@@ -167,9 +167,9 @@ test('header places API key and model controls beside the title on wide screens'
 
 test('localStorage backup preserves every stored key and value', () => {
     const storage = {
-        'myapp_comment:firstKey': 'first value',
-        'myapp_comment:secondKey': '{"enabled":true}',
-        'myapp_comment:teacher-settings': JSON.stringify({ className: '1年1班', apiKey: 'secret' }),
+        'mentor_comments:firstKey': 'first value',
+        'mentor_comments:secondKey': '{"enabled":true}',
+        'mentor_comments:teacher-settings': JSON.stringify({ className: '1年1班', apiKey: 'secret' }),
         'other-app:settings': 'must remain private'
     };
     Object.defineProperty(storage, 'getItem', {
@@ -202,14 +202,14 @@ test('localStorage backup parser accepts string values only', () => {
 });
 
 test('storage keys are namespaced and backup ignores other apps', () => {
-    assert.equal(context.getStorageKey('teacher-settings'), 'myapp_comment:teacher-settings');
-    assert.equal(context.getLogicalStorageKey('myapp_comment:teacher-settings'), 'teacher-settings');
+    assert.equal(context.getStorageKey('teacher-settings'), 'mentor_comments:teacher-settings');
+    assert.equal(context.getLogicalStorageKey('mentor_comments:teacher-settings'), 'teacher-settings');
     assert.equal(context.isAppStorageKey('other-app:settings'), false);
 });
 
 test('backup restore clears and writes only this app namespace', () => {
     const storage = {
-        'myapp_comment:old': 'old value',
+        'mentor_comments:old': 'old value',
         'other-app:keep': 'keep value',
         removeItem(key) {
             delete this[key];
@@ -228,16 +228,16 @@ test('backup restore clears and writes only this app namespace', () => {
     context.clearAppStorage(storage);
     context.restoreLocalStorageBackup({ 'teacher-settings': '{}', students: '[]' }, storage);
 
-    assert.equal(storage['myapp_comment:old'], undefined);
+    assert.equal(storage['mentor_comments:old'], undefined);
     assert.equal(storage['other-app:keep'], 'keep value');
-    assert.equal(storage['myapp_comment:teacher-settings'], '{}');
-    assert.equal(storage['myapp_comment:students'], '[]');
+    assert.equal(storage['mentor_comments:teacher-settings'], '{}');
+    assert.equal(storage['mentor_comments:students'], '[]');
 });
 
 test('backup import preserves the current API key', () => {
     const storage = {
         getItem(key) {
-            return key === 'myapp_comment:teacher-settings'
+            return key === 'mentor_comments:teacher-settings'
                 ? JSON.stringify({ className: '2年3班', apiKey: 'current-secret' })
                 : null;
         }
