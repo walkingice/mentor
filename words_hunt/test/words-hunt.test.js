@@ -36,10 +36,20 @@ describe('placement', () => {
     assertThrows(() => run("generateGrid(7, 10, ['ＡＢＣＤＥＦＧＨＩＪＫ'], '中')"));
     assertThrows(() => run("generateGrid(7, 7, [], '中')"));
   });
-  it('generates all four straight directions without diagonals', () => {
+  it('generates all eight straight directions within the grid', () => {
     const spots = run("candidates(['Ａ', 'Ｂ'], 7, 7)");
-    assertEqual(new Set(spots.map(({ dr, dc }) => `${dr},${dc}`)).size, 4);
-    assert(spots.every(({ dr, dc }) => Math.abs(dr) + Math.abs(dc) === 1));
+    assertEqual(new Set(spots.map(({ dr, dc }) => `${dr},${dc}`)).size, 8);
+    assert(spots.every(({ row, column, dr, dc }) =>
+      row + dr >= 0 && row + dr < 7 && column + dc >= 0 && column + dc < 7));
+    for (const [dr, dc] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+      assert(spots.some(spot => spot.dr === dr && spot.dc === dc));
+    }
+  });
+  it('places diagonal words and checks overlap conflicts', () => {
+    assertEqual(run("canPlace([[null,null,null],[null,'Ｂ',null],[null,null,null]], ['Ａ','Ｂ','Ｃ'], {row:0,column:0,dr:1,dc:1})"), true);
+    assertEqual(run("canPlace([[null,null,null],[null,'Ｘ',null],[null,null,null]], ['Ａ','Ｂ','Ｃ'], {row:0,column:0,dr:1,dc:1})"), false);
+    assertEqual(JSON.stringify(run("(() => { const grid = [[null,null,null],[null,'Ｂ',null],[null,null,null]]; place(grid, ['Ａ','Ｂ','Ｃ'], {row:0,column:0,dr:1,dc:1}); return grid; })()")),
+      '[["Ａ",null,null],[null,"Ｂ",null],[null,null,"Ｃ"]]');
   });
   it('allows equal overlaps and rejects conflicting overlaps', () => {
     assertEqual(run("canPlace([['Ａ','Ｂ'],['Ｃ',null]], ['Ｂ','Ｄ'], {row:0,column:1,dr:1,dc:0})"), true);

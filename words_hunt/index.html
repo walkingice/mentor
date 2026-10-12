@@ -61,7 +61,10 @@
     const STORAGE_PREFIX_KEY = 'mentor_words_hunt';
     const SEARCH_LIMIT = 50000;
     const segmenter = new Intl.Segmenter('zh', { granularity: 'grapheme' });
-    const directions = [[0, 1], [0, -1], [1, 0], [-1, 0]];
+    const directions = [
+      [0, 1], [0, -1], [1, 0], [-1, 0],
+      [1, 1], [1, -1], [-1, 1], [-1, -1]
+    ];
 
     function characters(value) {
       return Array.from(segmenter.segment(value.normalize('NFC')), part => part.segment);
