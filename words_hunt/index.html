@@ -33,6 +33,9 @@
       #word-list { margin: 3mm 0 5mm; gap: 2mm 5mm; font-size: 10pt; }
       #grid td { border-color: black; }
     }
+    ::placeholder {
+      color: rgb(0, 0, 0, 0.2);
+    }
   </style>
 </head>
 <body>
@@ -43,8 +46,8 @@
         <label>列數 <input id="rows" type="number" min="7" max="20" step="1" value="7" required></label>
         <label>欄數 <input id="columns" type="number" min="7" max="20" step="1" value="7" required></label>
       </div>
-      <label>題目（每行一組）<textarea id="puzzles" required></textarea></label>
-      <label>填充文字<textarea id="filler"></textarea></label>
+      <label>題目（每行一組）<textarea id="puzzles" placeholder="あまい&#10;もの" required></textarea></label>
+      <label>填充文字<textarea id="filler" placeholder="あいうえお&#10;かきくけこ&#10;さしすせそ"></textarea></label>
       <button type="submit">產生</button>
     </form>
     <p id="error" class="error" role="alert"></p>
