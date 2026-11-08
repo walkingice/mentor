@@ -13,7 +13,9 @@ p { color: #58677a; line-height: 1.6; }
 main { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(320px, 1.4fr); gap: 24px; align-items: start; }
 section { background: white; border: 1px solid #dce3ed; border-radius: 16px; padding: 24px; }
 .heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-h2 { font-size: 1.2rem; }
+h2, .subject-label { font-size: 1.2rem; font-weight: 700; }
+.subject-label { display: block; margin: .83em 0; }
+.subject-field { margin-bottom: 24px; }
 button { cursor: pointer; background: #1c6258; color: white; border: 0; border-radius: 8px; padding: 10px 14px; font: inherit; }
 button:disabled { opacity: .5; cursor: not-allowed; }
 #clear { background: #edf2f6; color: #35465a; font-size: .85rem; }
@@ -35,8 +37,10 @@ input[aria-invalid="true"] { color: #bc2635; border-color: #bc2635; }
 <header><h1>班級成績計算</h1><p>輸入或貼上成績，即時掌握全班表現。資料會自動儲存在此瀏覽器。</p></header>
 <main>
 <section aria-labelledby="input-title">
-<label for="class-subject">班級科目</label>
+<div class="subject-field">
+<label class="subject-label" for="class-subject">班級科目</label>
 <input id="class-subject" type="text" placeholder="四年一班數學">
+</div>
 <div class="heading"><h2 id="input-title">學生成績</h2><button id="clear" type="button">清除全部</button></div>
 <p id="hint">每行一位學生，空白表示無學生。Enter、↑、↓ 可切換座號；輸入 20～100 分自動移至下一列。</p>
 <p><label><input id="auto-next" type="checkbox" checked style="width:auto"> 輸入 20～100 分自動跳列</label>（輸入小數時可關閉）</p>
@@ -94,6 +98,10 @@ function exportText(values, title = '') {
 function timestamp(date) {
     const pad = n => String(n).padStart(2, '0');
     return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}_${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
+}
+function exportFilename(date, title = '') {
+    const subject = title.trim();
+    return `${timestamp(date)}${subject ? `_${subject}` : ''}.txt`;
 }
 function pasteValues(values, start, text) {
     const next = [...values];
@@ -166,7 +174,7 @@ function initialize() {
         const url = URL.createObjectURL(new Blob([exportText(values(), $('class-subject').value)], { type: 'text/plain;charset=utf-8' }));
         const link = document.createElement('a');
         link.href = url;
-        link.download = `${timestamp(new Date())}.txt`;
+        link.download = exportFilename(new Date(), $('class-subject').value);
         link.click();
         setTimeout(() => URL.revokeObjectURL(url), 1000);
     });

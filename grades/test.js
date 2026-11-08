@@ -5,7 +5,7 @@ const { describe, it, assert, assertEqual, getSummary } = require('../test_lib.j
 const html = fs.readFileSync(`${__dirname}/index.html`, 'utf8');
 const context = vm.createContext({});
 vm.runInContext(html.match(/<script>([\s\S]*?)<\/script>/)[1], context);
-const { calculate, parseScore, exportText, timestamp, pasteValues } = context;
+const { calculate, parseScore, exportText, exportFilename, timestamp, pasteValues } = context;
 describe('Grade calculations', () => {
     it('distinguishes zero from missing students', () => {
         const result = calculate(['', '  ', '0', '100']);
@@ -64,6 +64,16 @@ describe('Pasting and export', () => {
         try { exportText(['-1']); } catch { threw = true; }
         assert(threw);
         assert(exportText([]).includes('學生人數：0'));
+    });
+    it('appends the trimmed class subject to the export filename', () => {
+        const date = new Date(2026, 10, 1, 11, 22, 33);
+        assertEqual(exportFilename(date, ' 一年三班數學 '), '20261101_112233_一年三班數學.txt');
+    });
+    it('omits the filename suffix when the class subject is empty', () => {
+        const date = new Date(2026, 10, 1, 11, 22, 33);
+        ['', '   ', undefined].forEach(title => {
+            assertEqual(exportFilename(date, title), '20261101_112233.txt');
+        });
     });
     it('formats a local timestamp with padded components', () => {
         assertEqual(timestamp(new Date(2026, 0, 2, 3, 4, 5)), '20260102_030405');
