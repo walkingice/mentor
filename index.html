@@ -3,20 +3,70 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="為教師整理的日常教學工具：計算班級成績、撰寫期末評語，以及製作尋找文字題目。">
+    <meta name="theme-color" content="#f3f6fa">
     <title>教師工具</title>
+    <style>
+        :root { color-scheme: light; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #213547; background: #f3f6fa; }
+        * { box-sizing: border-box; }
+        body { margin: 0; min-height: 100vh; }
+        main { max-width: 1100px; margin: 0 auto; padding: 80px 24px 48px; }
+        .eyebrow { margin: 0 0 20px; color: #1c6258; font-size: .85rem; font-weight: 700; letter-spacing: .16em; }
+        h1 { margin: 0; font-size: clamp(2.4rem, 6vw, 3.8rem); line-height: 1.2; letter-spacing: -.04em; }
+        .intro { max-width: 560px; margin: 24px 0 40px; color: #58677a; font-size: 1.1rem; line-height: 1.8; }
+        .tools { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; margin: 0; padding: 0; list-style: none; }
+        .tools li { display: flex; }
+        .tool { display: flex; flex-direction: column; width: 100%; padding: 28px; border: 1px solid #dce3ed; border-radius: 16px; background: #fff; color: inherit; text-decoration: none; transition: border-color .15s, box-shadow .15s, transform .15s; }
+        .tool:hover { border-color: #287e70; box-shadow: 0 8px 24px #2135470d; transform: translateY(-3px); }
+        .tool:focus-visible { outline: 3px solid #287e70; outline-offset: 5px; }
+        .icon { display: grid; place-items: center; width: 48px; height: 48px; margin-bottom: 28px; border-radius: 12px; background: #edf6f2; color: #1c6258; }
+        .icon svg { width: 25px; height: 25px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+        .comments .icon { background: #eff1fb; color: #5966a0; }
+        .words .icon { background: #fcf3e6; color: #956c2d; }
+        h2 { margin: 0; font-size: 1.2rem; line-height: 1.5; }
+        .description { margin: 12px 0 28px; color: #58677a; line-height: 1.8; }
+        .open { display: flex; justify-content: space-between; gap: 12px; margin-top: auto; color: #1c6258; font-weight: 600; }
+        footer { margin-top: 40px; border-top: 1px solid #dce3ed; padding-top: 24px; color: #58677a; font-size: .9rem; line-height: 1.7; }
+        @media (max-width: 760px) { main { padding-top: 48px; } .tools { grid-template-columns: 1fr; } .tool { padding: 24px; } .icon { margin-bottom: 20px; } }
+        @media (prefers-reduced-motion: reduce) { .tool { transition: none; } .tool:hover { transform: none; } }
+    </style>
 </head>
 <body>
     <main>
-        <h1>教師工具</h1>
-        <ul>
-            <li>
-                <a href="comments/">期末評語小幫手</a>
-            </li>
-            <li>
-                <a href="words_hunt/">尋找文字題目工具</a>
-            </li>
-        </ul>
-
+        <header>
+            <p class="eyebrow">給老師的日常小幫手</p>
+            <h1>教師工具箱</h1>
+            <p class="intro">整理教師可能會用到的小工具</p>
+        </header>
+        <nav aria-label="教學工具">
+            <ul class="tools">
+                <li>
+                    <a class="tool grades" href="grades/index.html">
+                        <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h2m4 0h2m-8 4h2m4 0h2m-8 3h2m4 0h2"/></svg></span>
+                        <h2>班級成績計算</h2>
+                        <p class="description">輸入或貼上學生成績，即時查看平均、標準差、級距與排序，並匯出計算結果。</p>
+                        <span class="open">開始計算<span aria-hidden="true">→</span></span>
+                    </a>
+                </li>
+                <li>
+                    <a class="tool comments" href="comments/index.html">
+                        <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H8l-5 3V7a4 4 0 0 1 4-4h9a4 4 0 0 1 4 4Z"/><path d="M7 8h9M7 12h6"/></svg></span>
+                        <h2>期末評語小幫手</h2>
+                        <p class="description">整理學生特質、調整評語口吻，透過 Gemini 協助撰寫與匯出期末評語。</p>
+                        <span class="open">撰寫評語<span aria-hidden="true">→</span></span>
+                    </a>
+                </li>
+                <li>
+                    <a class="tool words" href="words_hunt/index.html">
+                        <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg></span>
+                        <h2>尋找文字題目工具</h2>
+                        <p class="description">製作尋找文字題目，為課堂練習與學習活動準備一份有趣的挑戰。</p>
+                        <span class="open">製作題目<span aria-hidden="true">→</span></span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+        <footer>所有的工具皆是可在本機執行的純網頁檔，東西也只儲存於你的 localStorage</footer>
     </main>
 </body>
 </html>
