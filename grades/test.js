@@ -51,6 +51,14 @@ describe('Pasting and export', () => {
         assert(text.includes('總平均：45.00'));
         assert(text.includes('### 成績排序'));
     });
+    it('uses the class subject as the H1 export title', () => {
+        assertEqual(exportText(['90'], ' 四年一班數學 ').split('\n')[0], '# 四年一班數學');
+    });
+    it('uses the default title when the class subject is empty', () => {
+        ['', '   ', undefined].forEach(title => {
+            assertEqual(exportText([], title).split('\n')[0], '# 班級成績表');
+        });
+    });
     it('blocks invalid exports and handles empty exports', () => {
         let threw = false;
         try { exportText(['-1']); } catch { threw = true; }

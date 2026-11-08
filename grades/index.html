@@ -35,6 +35,8 @@ input[aria-invalid="true"] { color: #bc2635; border-color: #bc2635; }
 <header><h1>班級成績計算</h1><p>輸入或貼上成績，即時掌握全班表現。資料會自動儲存在此瀏覽器。</p></header>
 <main>
 <section aria-labelledby="input-title">
+<label for="class-subject">班級科目</label>
+<input id="class-subject" type="text" placeholder="四年一班數學">
 <div class="heading"><h2 id="input-title">學生成績</h2><button id="clear" type="button">清除全部</button></div>
 <p id="hint">每行一位學生，空白表示無學生。Enter、↑、↓ 可切換座號；輸入 20～100 分自動移至下一列。</p>
 <p><label><input id="auto-next" type="checkbox" checked style="width:auto"> 輸入 20～100 分自動跳列</label>（輸入小數時可關閉）</p>
@@ -81,13 +83,13 @@ function calculate(values) {
     return { invalid, students: sorted, bands, mean, deviation, median };
 }
 function format(value) { return value == null ? '--' : value.toFixed(2); }
-function exportText(values) {
+function exportText(values, title = '') {
     const result = calculate(values);
     if (result.invalid.length) throw new Error('Invalid scores');
     let last = values.length - 1;
     while (last >= 0 && parseScore(values[last]) === null) last--;
     const scores = values.slice(0, last + 1).map((value, i) => `${String(i + 1).padStart(2, '0')}. ${parseScore(value) ?? '--'}`);
-    return ['# 班級成績表', '', '## 計算結果', '', `學生人數：${result.students.length}`, `總平均：${format(result.mean)}`, `標準差（母體）：${format(result.deviation)}`, `中位數：${format(result.median)}`, '', ...BAND_LABELS.map((label, i) => `${label}：${result.bands[i]} 人`), '', '### 成績排序', '', ...result.students.map(s => `${String(s.seat).padStart(2, '0')} 號：${s.score}`), '', '## 學生成績', '', ...scores, ''].join('\n');
+    return [`# ${title.trim() || '班級成績表'}`, '', '## 計算結果', '', `學生人數：${result.students.length}`, `總平均：${format(result.mean)}`, `標準差（母體）：${format(result.deviation)}`, `中位數：${format(result.median)}`, '', ...BAND_LABELS.map((label, i) => `${label}：${result.bands[i]} 人`), '', '### 成績排序', '', ...result.students.map(s => `${String(s.seat).padStart(2, '0')} 號：${s.score}`), '', '## 學生成績', '', ...scores, ''].join('\n');
 }
 function timestamp(date) {
     const pad = n => String(n).padStart(2, '0');
@@ -105,6 +107,7 @@ function initialize() {
     try {
         const data = JSON.parse(localStorage.getItem(`${STORAGE_PREFIX_KEY}_scores`) || '[]');
         if (Array.isArray(data)) saved = data;
+        $('class-subject').value = localStorage.getItem(`${STORAGE_PREFIX_KEY}_class_subject`) || '';
     } catch { storageWarning = '無法讀取儲存資料，請確認瀏覽器儲存設定。'; }
     const inputs = Array.from({ length: 100 }, (_, i) => {
         const row = document.createElement('tr');
@@ -120,7 +123,11 @@ function initialize() {
         const raw = values();
         const result = calculate(raw);
         inputs.forEach((input, i) => input.setAttribute('aria-invalid', String(result.invalid.includes(i + 1))));
-        try { localStorage.setItem(`${STORAGE_PREFIX_KEY}_scores`, JSON.stringify(raw)); storageWarning = ''; }
+        try {
+            localStorage.setItem(`${STORAGE_PREFIX_KEY}_scores`, JSON.stringify(raw));
+            localStorage.setItem(`${STORAGE_PREFIX_KEY}_class_subject`, $('class-subject').value);
+            storageWarning = '';
+        }
         catch { storageWarning = '無法儲存資料，請在離開前匯出計算結果。'; }
         const invalid = result.invalid.length > 0;
         const message = invalid ? `座號 ${result.invalid.join('、')} 的成績無效。請輸入零或正數，負分數無法計算。` : storageWarning;
@@ -153,9 +160,10 @@ function initialize() {
             update();
         });
     });
+    $('class-subject').addEventListener('input', update);
     $('clear').addEventListener('click', () => { inputs.forEach(input => { input.value = ''; }); update(); focus(0); });
     $('export').addEventListener('click', () => {
-        const url = URL.createObjectURL(new Blob([exportText(values())], { type: 'text/plain;charset=utf-8' }));
+        const url = URL.createObjectURL(new Blob([exportText(values(), $('class-subject').value)], { type: 'text/plain;charset=utf-8' }));
         const link = document.createElement('a');
         link.href = url;
         link.download = `${timestamp(new Date())}.txt`;
