@@ -39,9 +39,22 @@
     ::placeholder {
       color: rgb(0, 0, 0, 0.2);
     }
+    .site-header { background: #fff; border-bottom: 1px solid #dce3ed; }
+    .site-header-inner { box-sizing: border-box; padding: 16px 24px; display: flex; align-items: center; flex-wrap: wrap; gap: 12px 24px; }
+    .site-home { color: #1c6258; font-size: 1rem; font-weight: 700; line-height: 1.5; text-decoration: none; }
+    .site-home:hover { text-decoration: underline; }
+    .site-home:focus-visible { outline: 3px solid #287e70; outline-offset: 4px; border-radius: 4px; }
+    .site-page { color: #58677a; font-size: .9rem; line-height: 1.5; }
+    @media print { .site-header { display: none; } }
   </style>
 </head>
 <body>
+    <header class="site-header">
+        <nav class="site-header-inner" aria-label="主要導覽">
+            <a class="site-home" href="../index.html">← 教師工具箱</a>
+            <span class="site-page">尋找文字題目工具</span>
+        </nav>
+    </header>
   <main>
     <h1>尋找文字題目工具</h1>
     <form id="generator-form" novalidate>

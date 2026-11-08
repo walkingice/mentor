@@ -6,8 +6,9 @@
 <title>班級成績計算器</title>
 <style>
 :root { font-family: system-ui, sans-serif; color: #213547; background: #f3f6fa; }
-body { margin: 0; padding: 32px 24px 80px; }
-header, main { max-width: 1100px; margin: auto; }
+body { margin: 0; padding: 0 0 80px; }
+.page-intro, main { box-sizing: border-box; max-width: 1100px; margin: auto; padding: 0 24px; }
+.page-intro { padding-top: 24px; }
 h1 { margin-bottom: 8px; }
 p { color: #58677a; line-height: 1.6; }
 main { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(320px, 1.4fr); gap: 24px; align-items: start; }
@@ -30,11 +31,24 @@ input[aria-invalid="true"] { color: #bc2635; border-color: #bc2635; }
 .stat strong { display: block; margin-top: 8px; font-size: 1.5rem; }
 #message { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); width: min(90%, 700px); box-sizing: border-box; padding: 16px; background: #912d39; color: white; border-radius: 10px; box-shadow: 0 4px 20px #0002; }
 #message[hidden] { display: none; }
-@media (max-width: 700px) { body { padding: 16px 12px 90px; } main { grid-template-columns: 1fr; } section { padding: 16px; } }
+@media (max-width: 700px) { body { padding-bottom: 90px; } .page-intro, main { padding-left: 12px; padding-right: 12px; } main { grid-template-columns: 1fr; } section { padding: 16px; } }
+.site-header { background: #fff; border-bottom: 1px solid #dce3ed; }
+.site-header-inner { box-sizing: border-box; padding: 16px 24px; display: flex; align-items: center; flex-wrap: wrap; gap: 12px 24px; }
+.site-home { color: #1c6258; font-size: 1rem; font-weight: 700; line-height: 1.5; text-decoration: none; }
+.site-home:hover { text-decoration: underline; }
+.site-home:focus-visible { outline: 3px solid #287e70; outline-offset: 4px; border-radius: 4px; }
+.site-page { color: #58677a; font-size: .9rem; line-height: 1.5; }
+@media print { .site-header { display: none; } }
 </style>
 </head>
 <body>
-<header><h1>班級成績計算</h1><p>輸入或貼上成績，即時掌握全班表現。資料會自動儲存在此瀏覽器。</p></header>
+    <header class="site-header">
+        <nav class="site-header-inner" aria-label="主要導覽">
+            <a class="site-home" href="../index.html">← 教師工具箱</a>
+            <span class="site-page">班級成績計算</span>
+        </nav>
+    </header>
+<header class="page-intro"><h1>班級成績計算</h1><p>輸入或貼上成績，即時掌握全班表現。資料會自動儲存在此瀏覽器。</p></header>
 <main>
 <section aria-labelledby="input-title">
 <div class="subject-field">
